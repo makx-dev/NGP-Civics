@@ -137,6 +137,11 @@ npm run dev
 
 ## Scripts
 
+### Repository Root
+- `npm run dev` (starts frontend dev server from root)
+- `npm run dev:client`
+- `npm run dev:server`
+
 ### Client
 - `npm run dev`
 - `npm run build`
