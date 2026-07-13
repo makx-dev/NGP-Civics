@@ -3,8 +3,10 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Admin = require('../models/Admin');
 const { signToken } = require('../utils/token');
+const { authLimiter } = require('../middleware/rateLimiters');
 
 const router = express.Router();
+router.use(authLimiter);
 
 router.post('/register', async (req, res) => {
   try {

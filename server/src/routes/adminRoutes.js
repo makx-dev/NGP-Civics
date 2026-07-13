@@ -16,49 +16,56 @@ router.use(protect('admin'));
 router.get('/issues', async (req, res) => {
   try {
     const { category, status, priority, fromDate, toDate, search, hasLocation } = req.query;
-    const query = {};
+    let issueQuery = Issue.find();
 
     if (category && mongoose.Types.ObjectId.isValid(category)) {
-      query.category = category;
+      issueQuery = issueQuery.where('category').equals(category);
     }
 
     if (status && statusOrder.includes(status)) {
-      query.status = status;
+      issueQuery = issueQuery.where('status').equals(status);
     }
 
     if (priority && ['Low', 'Medium', 'High'].includes(priority)) {
-      query.priority = priority;
+      issueQuery = issueQuery.where('priority').equals(priority);
     }
 
-    if (fromDate || toDate) {
-      query.createdAt = {};
-      if (fromDate) query.createdAt.$gte = new Date(fromDate);
-      if (toDate) query.createdAt.$lte = new Date(toDate);
+    if (fromDate) {
+      issueQuery = issueQuery.where('createdAt').gte(new Date(fromDate));
+    }
+    if (toDate) {
+      issueQuery = issueQuery.where('createdAt').lte(new Date(toDate));
     }
 
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { 'location.address': { $regex: search, $options: 'i' } },
-      ];
-    }
-
-    if (hasLocation === 'true') {
-      query.$or = [
-        ...(query.$or || []),
-        { 'location.lat': { $ne: null }, 'location.lng': { $ne: null } },
-        { 'location.address': { $exists: true, $ne: '' } },
-      ];
-    }
-
-    const issues = await Issue.find(query)
+    const issues = await issueQuery
       .sort({ createdAt: -1 })
       .populate('category', 'name')
       .populate('reporter', 'name email')
       .populate('assignedAdmin', 'name email department');
 
-    return res.json(issues);
+    let filteredIssues = issues;
+
+    if (search) {
+      const searchLower = String(search).toLowerCase();
+      filteredIssues = filteredIssues.filter((issue) => {
+        const locationAddress = issue.location?.address || '';
+        return (
+          issue.title.toLowerCase().includes(searchLower) ||
+          issue.description.toLowerCase().includes(searchLower) ||
+          locationAddress.toLowerCase().includes(searchLower)
+        );
+      });
+    }
+
+    if (hasLocation === 'true') {
+      filteredIssues = filteredIssues.filter((issue) => {
+        const hasGps = typeof issue.location?.lat === 'number' && typeof issue.location?.lng === 'number';
+        const hasAddress = Boolean(issue.location?.address);
+        return hasGps || hasAddress;
+      });
+    }
+
+    return res.json(filteredIssues);
   } catch (error) {
     return res.status(400).json({ message: error.message });
   }
