@@ -8,13 +8,13 @@ const defaultCategories = [
   'Streetlights',
   'Garbage',
   'Water Leakage',
-  'Public Washroom Hygeine',
+  'Public Washroom Hygiene',
   'Drainage',
   'Traffic Signal',
   'Spitting',
   'Public Property Damage',
-  'Animal Wellfare',
   'Encroachment',
+  'Animal Welfare',
   'Others',
 ];
 

@@ -83,7 +83,9 @@ Base URL: `/api`
 
 ### Citizen Issue Routes
 - `POST /issues` — create issue
+- `GET /issues` — list issues with role-aware access, filters, search, and pagination
 - `GET /issues/mine` — list own issues
+- `GET /issues/summary` — admin issue reporting snapshot
 - `GET /issues/:id` — view issue details
 - `PATCH /issues/:id` — edit own pending issue
 - `DELETE /issues/:id` — delete own pending issue
@@ -136,6 +138,11 @@ npm run dev
 ```
 
 ## Scripts
+
+### Repository Root
+- `npm run dev` (starts frontend dev server from root)
+- `npm run dev:client`
+- `npm run dev:server`
 
 ### Client
 - `npm run dev`
