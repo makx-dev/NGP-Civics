@@ -18,7 +18,52 @@ const statusOrder = [
   'Work Completed',
   'Citizen Verification Pending',
   'Resolved',
+  'REOPENED',
 ];
+
+const allowedStatusTransitions = {
+  'Complaint Submitted': ['Assigned to Department'],
+  'Assigned to Department': ['Engineer Assigned'],
+  'Engineer Assigned': ['Inspection Scheduled'],
+  'Inspection Scheduled': ['Work Started'],
+  'Work Started': ['Work Completed'],
+  'Work Completed': ['Citizen Verification Pending'],
+  REOPENED: ['Work Started'],
+};
+
+const getStatusNotification = (issue) => {
+  const messages = {
+    'Assigned to Department': {
+      type: 'Status Changed',
+      message: `Your issue "${issue.title}" has been assigned to the responsible department.`,
+    },
+    'Engineer Assigned': {
+      type: 'Engineer Assigned',
+      message: `An engineer has been assigned to your issue "${issue.title}".`,
+    },
+    'Inspection Scheduled': {
+      type: 'Inspection Scheduled',
+      message: `An inspection has been scheduled for your issue "${issue.title}".`,
+    },
+    'Work Started': {
+      type: 'Work Started',
+      message: `Work has started on your issue "${issue.title}".`,
+    },
+    'Work Completed': {
+      type: 'Work Completed',
+      message: `Work has been completed on your issue "${issue.title}".`,
+    },
+    'Citizen Verification Pending': {
+      type: 'Verification Requested',
+      message: `Work on "${issue.title}" is complete. Please review the after photo and verify the result.`,
+    },
+  };
+
+  return messages[issue.status] || {
+    type: 'Status Changed',
+    message: `Your issue "${issue.title}" status changed to ${issue.status}.`,
+  };
+};
 
 router.use(protect('admin'));
 
@@ -116,26 +161,34 @@ router.patch('/issues/:id', async (req, res) => {
       issue.adminRemarks = adminRemarks;
     }
 
+    if (typeof completionPhoto !== 'undefined') {
+      if (typeof completionPhoto !== 'string' || !completionPhoto.trim()) {
+        return res.status(400).json({ message: 'Completion photo must be a non-empty URL' });
+      }
+
+      issue.completionPhoto = completionPhoto.trim();
+      issue.completionPhotoUploadedAt = new Date();
+    }
+
     if (status) {
       if (!statusOrder.includes(status)) {
         return res.status(400).json({ message: 'Invalid status value' });
       }
 
-      if (statusOrder.indexOf(status) < statusOrder.indexOf(previousStatus)) {
-        return res.status(400).json({ message: 'Status cannot move backward' });
+      if (!allowedStatusTransitions[previousStatus]?.includes(status)) {
+        return res.status(400).json({
+          message: `Cannot change status from ${previousStatus} to ${status}`,
+        });
       }
 
       issue.status = status;
     }
 
-    if (issue.status === 'Resolved') {
+    if (issue.status === 'Citizen Verification Pending') {
       if (!completionPhoto && !issue.completionPhoto) {
-        return res.status(400).json({ message: 'Completion photo is required when resolving an issue' });
+        return res.status(400).json({ message: 'Completion photo is required before citizen verification' });
       }
 
-      if (completionPhoto) {
-        issue.completionPhoto = completionPhoto;
-      }
     }
 
     await issue.save();
@@ -149,14 +202,13 @@ router.patch('/issues/:id', async (req, res) => {
         remark: issue.adminRemarks,
       });
 
+      const notification = getStatusNotification(issue);
+
       await createNotification({
         recipient: issue.reporter,
         issue: issue._id,
-        type: issue.status === 'Resolved' ? 'Issue Resolved' : 'Status Changed',
-        message:
-          issue.status === 'Resolved'
-            ? `Your issue "${issue.title}" has been resolved.`
-            : `Your issue "${issue.title}" status changed to ${issue.status}.`,
+        type: notification.type,
+        message: notification.message,
       });
     }
 

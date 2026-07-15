@@ -52,7 +52,7 @@ Main civic issue record.
 - `photos` (embedded array, max 5)
 - `status`: `Pending | In Progress | Resolved`
 - `priority`: `Low | Medium | High`
-- `adminRemarks`, `completionPhoto`
+- `adminRemarks`, `completionPhoto`, `completionPhotoUploadedAt`
 - `createdAt`, `updatedAt`
 
 ### 5) Status History (`StatusHistory`)
@@ -87,13 +87,16 @@ Base URL: `/api`
 - `GET /issues/mine` — list own issues
 - `GET /issues/summary` — admin issue reporting snapshot
 - `GET /issues/:id` — view issue details
+- `GET /issues/:id/photo-comparison` — view citizen before photos and the admin after photo
 - `PATCH /issues/:id` — edit own pending issue
 - `DELETE /issues/:id` — delete own pending issue
 - `GET /issues/:id/history` — status timeline
 
+Status updates notify the citizen with specific messages for engineer assignment, inspection scheduling, work start, work completion, and the verification request.
+
 ### Admin Routes
 - `GET /admin/issues` — list/filter/search all issues
-- `PATCH /admin/issues/:id` — assign category/admin, update status, remarks, completion photo
+- `PATCH /admin/issues/:id` — assign category/admin, update status, remarks, and completion photo
 - `GET /admin/analytics/overview` — counts and resolution trends
 - `GET /admin/notifications` — recent notifications
 

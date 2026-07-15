@@ -7,12 +7,16 @@ const statusTimeline = [
   'Work Completed',
   'Citizen Verification Pending',
   'Resolved',
+  'REOPENED',
 ];
 
 const buildIssueTimeline = (currentStatus, history = []) =>
   statusTimeline.map((status, index) => {
     const currentHistory = history.find((entry) => entry.toStatus === status);
-    const isCompleted = statusTimeline.indexOf(currentStatus) >= index;
+    const isReopened = currentStatus === 'REOPENED';
+    const isCompleted = isReopened
+      ? index <= statusTimeline.indexOf('Citizen Verification Pending')
+      : statusTimeline.indexOf(currentStatus) >= index;
 
     return {
       status,

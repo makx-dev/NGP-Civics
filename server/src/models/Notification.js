@@ -15,7 +15,17 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['Issue Submitted', 'Status Changed', 'Issue Resolved'],
+      enum: [
+        'Issue Submitted',
+        'Status Changed',
+        'Engineer Assigned',
+        'Inspection Scheduled',
+        'Work Started',
+        'Work Completed',
+        'Verification Requested',
+        'Issue Reopened',
+        'Issue Resolved',
+      ],
       required: true,
     },
     message: {

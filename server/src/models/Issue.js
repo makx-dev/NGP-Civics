@@ -30,6 +30,7 @@ const issueTimeline = [
   'Work Completed',
   'Citizen Verification Pending',
   'Resolved',
+  'REOPENED',
 ];
 
 const issueSchema = new mongoose.Schema(
@@ -108,6 +109,9 @@ const issueSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: 500,
+    },
+    completionPhotoUploadedAt: {
+      type: Date,
     },
   },
   { timestamps: true }

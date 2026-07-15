@@ -17,6 +17,7 @@ const statusOrder = [
   'Work Completed',
   'Citizen Verification Pending',
   'Resolved',
+  'REOPENED',
 ];
 const priorityOrder = ['Low', 'Medium', 'High'];
 
@@ -259,6 +260,93 @@ router.get('/:id', protect(), async (req, res) => {
     return res.json(issue);
   } catch (error) {
     return res.status(400).json({ message: 'Invalid issue ID' });
+  }
+});
+
+// Provides a single, role-authorized payload for a before/after comparison UI.
+router.get('/:id/photo-comparison', protect(), async (req, res) => {
+  try {
+    const issue = await Issue.findById(req.params.id).select(
+      'reporter photos completionPhoto completionPhotoUploadedAt'
+    );
+
+    if (!issue) {
+      return res.status(404).json({ message: 'Issue not found' });
+    }
+
+    if (req.auth.role === 'user' && String(issue.reporter) !== req.auth.id) {
+      return res.status(403).json({ message: 'Not allowed to view this issue comparison' });
+    }
+
+    return res.json({
+      before: issue.photos,
+      after: issue.completionPhoto
+        ? {
+            url: issue.completionPhoto,
+            uploadedAt: issue.completionPhotoUploadedAt || null,
+          }
+        : null,
+    });
+  } catch (error) {
+    return res.status(400).json({ message: 'Invalid issue ID' });
+  }
+});
+
+// The citizen is the only actor who can close an issue after work is completed.
+router.post('/:id/verification', protect('user'), async (req, res) => {
+  try {
+    const { decision, remark } = req.body;
+
+    if (!['Fixed', 'Not Fixed'].includes(decision)) {
+      return res.status(400).json({ message: 'Decision must be either "Fixed" or "Not Fixed"' });
+    }
+
+    if (typeof remark !== 'undefined' && (typeof remark !== 'string' || remark.length > 500)) {
+      return res.status(400).json({ message: 'Verification remark must be 500 characters or fewer' });
+    }
+
+    const issue = await Issue.findOne({
+      _id: req.params.id,
+      reporter: req.auth.id,
+      status: 'Citizen Verification Pending',
+    });
+
+    if (!issue) {
+      return res.status(404).json({
+        message: 'Issue not found or is not awaiting citizen verification',
+      });
+    }
+
+    const previousStatus = issue.status;
+    issue.status = decision === 'Fixed' ? 'Resolved' : 'REOPENED';
+    await issue.save();
+
+    await StatusHistory.create({
+      issue: issue._id,
+      fromStatus: previousStatus,
+      toStatus: issue.status,
+      changedByUser: req.auth.id,
+      remark: remark?.trim() || `Citizen marked the issue as ${decision}.`,
+    });
+
+    await createNotification({
+      recipient: issue.reporter,
+      issue: issue._id,
+      type: issue.status === 'Resolved' ? 'Issue Resolved' : 'Issue Reopened',
+      message:
+        issue.status === 'Resolved'
+          ? `You confirmed that "${issue.title}" is fixed.`
+          : `You reported that "${issue.title}" is not fixed. The issue has been reopened.`,
+    });
+
+    const updatedIssue = await Issue.findById(issue._id)
+      .populate('category', 'name')
+      .populate('reporter', 'name email')
+      .populate('assignedAdmin', 'name email department');
+
+    return res.json(updatedIssue);
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
   }
 });
 
