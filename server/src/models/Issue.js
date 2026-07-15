@@ -21,6 +21,17 @@ const issuePhotoSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const issueTimeline = [
+  'Complaint Submitted',
+  'Assigned to Department',
+  'Engineer Assigned',
+  'Inspection Scheduled',
+  'Work Started',
+  'Work Completed',
+  'Citizen Verification Pending',
+  'Resolved',
+];
+
 const issueSchema = new mongoose.Schema(
   {
     title: {
@@ -78,8 +89,8 @@ const issueSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Pending', 'In Progress', 'Resolved'],
-      default: 'Pending',
+      enum: issueTimeline,
+      default: 'Complaint Submitted',
       index: true,
     },
     priority: {

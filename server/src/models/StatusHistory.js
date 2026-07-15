@@ -10,12 +10,30 @@ const statusHistorySchema = new mongoose.Schema(
     },
     fromStatus: {
       type: String,
-      enum: ['Pending', 'In Progress', 'Resolved'],
+      enum: [
+        'Complaint Submitted',
+        'Assigned to Department',
+        'Engineer Assigned',
+        'Inspection Scheduled',
+        'Work Started',
+        'Work Completed',
+        'Citizen Verification Pending',
+        'Resolved',
+      ],
       required: true,
     },
     toStatus: {
       type: String,
-      enum: ['Pending', 'In Progress', 'Resolved'],
+      enum: [
+        'Complaint Submitted',
+        'Assigned to Department',
+        'Engineer Assigned',
+        'Inspection Scheduled',
+        'Work Started',
+        'Work Completed',
+        'Citizen Verification Pending',
+        'Resolved',
+      ],
       required: true,
     },
     changedByUser: {

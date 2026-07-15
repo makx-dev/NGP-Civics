@@ -13,6 +13,14 @@ app.use(express.json({ limit: '2mb' }));
 app.set('trust proxy', 1);
 app.use('/api', apiLimiter);
 
+app.get('/api', (_req, res) => {
+  res.json({ status: 'ok', service: 'NGP Civics API', baseUrl: '/api' });
+});
+
+app.get('/', (_req, res) => {
+  res.json({ status: 'ok', service: 'NGP Civics API', baseUrl: '/' });
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'NGP Civics API' });
 });

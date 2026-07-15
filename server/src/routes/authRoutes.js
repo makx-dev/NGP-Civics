@@ -10,7 +10,7 @@ router.use(authLimiter);
 
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone } = req.body || {};
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email, and password are required' });
@@ -33,10 +33,10 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
 
     const user = await User.findOne({ email: (email || '').toLowerCase() });
-    if (!user) {
+    if (!user || !user.passwordHash) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
@@ -54,10 +54,10 @@ router.post('/login', async (req, res) => {
 
 router.post('/admin/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
 
     const admin = await Admin.findOne({ email: (email || '').toLowerCase() });
-    if (!admin) {
+    if (!admin || !admin.passwordHash) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 

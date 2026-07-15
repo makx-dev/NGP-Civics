@@ -8,7 +8,16 @@ const { createNotification } = require('../utils/notification');
 
 const router = express.Router();
 
-const statusOrder = ['Pending', 'In Progress', 'Resolved'];
+const statusOrder = [
+  'Complaint Submitted',
+  'Assigned to Department',
+  'Engineer Assigned',
+  'Inspection Scheduled',
+  'Work Started',
+  'Work Completed',
+  'Citizen Verification Pending',
+  'Resolved',
+];
 const priorityOrder = ['Low', 'Medium', 'High'];
 
 const isValidDate = (value) => !Number.isNaN(new Date(value).getTime());
@@ -192,13 +201,13 @@ router.post('/', protect('user'), async (req, res) => {
       photos,
       priority,
       reporter: req.auth.id,
-      status: 'Pending',
+      status: 'Complaint Submitted',
     });
 
     await StatusHistory.create({
       issue: issue._id,
-      fromStatus: 'Pending',
-      toStatus: 'Pending',
+      fromStatus: 'Complaint Submitted',
+      toStatus: 'Complaint Submitted',
       changedByUser: req.auth.id,
       remark: 'Issue submitted',
     });

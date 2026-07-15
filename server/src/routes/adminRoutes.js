@@ -9,7 +9,16 @@ const { createNotification } = require('../utils/notification');
 
 const router = express.Router();
 
-const statusOrder = ['Pending', 'In Progress', 'Resolved'];
+const statusOrder = [
+  'Complaint Submitted',
+  'Assigned to Department',
+  'Engineer Assigned',
+  'Inspection Scheduled',
+  'Work Started',
+  'Work Completed',
+  'Citizen Verification Pending',
+  'Resolved',
+];
 
 router.use(protect('admin'));
 
