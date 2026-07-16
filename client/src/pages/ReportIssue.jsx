@@ -14,6 +14,7 @@ import LoadingSkeleton from '../components/report/LoadingSkeleton'
 import { defaultFormValues } from '../lib/validation'
 import { mockSubmitResponse } from '../data/reportIssueData'
 import api from '../lib/api'
+import { addIssue } from '../lib/issuesStore'
 
 const STORAGE_KEY = 'ngp_report_issue_draft'
 
@@ -126,19 +127,19 @@ export default function ReportIssue() {
   const validateStep = (step) => {
     const errs = {}
     if (step === 1) {
+      if (!formData.category) errs.category = 'Please select a category'
+      if (!formData.title?.trim()) errs.title = 'Title is required'
+      if (!formData.description?.trim()) errs.description = 'Description is required'
+    } else if (step === 2) {
+      if (!formData.location?.address?.trim()) {
+        errs.location = { address: 'Please select or search a location' }
+      }
+    } else if (step === 3) {
       if (!formData.photos || formData.photos.length === 0) {
         errs.photos = { message: 'At least one photo is required' }
       }
       if (formData.photos.length > 5) {
         errs.photos = { message: 'Maximum 5 photos allowed' }
-      }
-    } else if (step === 2) {
-      if (!formData.category) errs.category = 'Please select a category'
-      if (!formData.title?.trim()) errs.title = 'Title is required'
-      if (!formData.description?.trim()) errs.description = 'Description is required'
-    } else if (step === 3) {
-      if (!formData.location?.address?.trim()) {
-        errs.location = { address: 'Please select or search a location' }
       }
     }
     setErrors(errs)
@@ -170,15 +171,14 @@ export default function ReportIssue() {
   }
 
   const handleSubmit = async () => {
-    if (!validateStep(3)) {
-      setDirection(1)
-      setCurrentStep(4)
-      return
-    }
-    if (!validateStep(4)) {
-      setDirection(1)
-      setCurrentStep(4)
-      return
+    // Validate all steps before submitting
+    const step1Valid = validateStep(1)
+    const step2Valid = validateStep(2)
+    const step3Valid = validateStep(3)
+    if (!step1Valid || !step2Valid || !step3Valid) {
+      if (!step1Valid) { setDirection(1); setCurrentStep(1); return }
+      if (!step2Valid) { setDirection(1); setCurrentStep(2); return }
+      if (!step3Valid) { setDirection(1); setCurrentStep(3); return }
     }
     setIsSubmitting(true)
     try {
@@ -215,6 +215,38 @@ export default function ReportIssue() {
       setShowSuccess(true)
       hasUnsaved.current = false
       localStorage.removeItem(STORAGE_KEY)
+
+      // Save to local issues store so it appears in My Issues
+      const categoryMap = {
+        'road-damage': 'Road',
+        garbage: 'Garbage',
+        'street-light': 'Street Light',
+        'water-leakage': 'Water',
+        drainage: 'Drainage',
+        'illegal-parking': 'Traffic',
+        encroachment: 'Encroachment',
+        'traffic-signal': 'Traffic',
+        'public-property-damage': 'Road',
+        other: 'Other',
+      }
+
+      const priorityMap = { low: 'Low', medium: 'Medium', high: 'High' }
+
+      const newIssue = {
+        id: `submitted-${Date.now()}`,
+        complaintId: result.complaintId,
+        title: formData.title,
+        category: categoryMap[formData.category] || formData.category,
+        department: 'NMC Department',
+        area: formData.location.area || formData.location.address?.split(',').slice(-2, -1)[0]?.trim() || 'Nagpur',
+        priority: priorityMap[formData.priority] || 'Medium',
+        status: 'Pending',
+        reportedDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        lastUpdated: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        image: formData.photos?.[0]?.preview || null,
+        currentStage: 'Awaiting initial review by the concerned department.',
+      }
+      addIssue(newIssue)
     } catch {
       setErrors({ submit: 'Failed to submit report. Please try again.' })
     } finally {
@@ -225,14 +257,6 @@ export default function ReportIssue() {
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return (
-          <PhotoUploader
-            files={formData.photos}
-            onFilesChange={(files) => updateField('photos', files)}
-            errors={errors}
-          />
-        )
-      case 2:
         return (
           <div className="space-y-8">
             <CategorySelector
@@ -247,11 +271,19 @@ export default function ReportIssue() {
             />
           </div>
         )
-      case 3:
+      case 2:
         return (
           <LocationPicker
             location={formData.location}
             onLocationChange={updateLocation}
+            errors={errors}
+          />
+        )
+      case 3:
+        return (
+          <PhotoUploader
+            files={formData.photos}
+            onFilesChange={(files) => updateField('photos', files)}
             errors={errors}
           />
         )

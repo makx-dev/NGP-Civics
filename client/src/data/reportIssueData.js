@@ -31,9 +31,9 @@ export const priorityOptions = [
 ]
 
 export const steps = [
-  { id: 1, label: 'Photos', description: 'Upload issue images' },
-  { id: 2, label: 'Details', description: 'Describe the issue' },
-  { id: 3, label: 'Location', description: 'Pin the location' },
+  { id: 1, label: 'Details', description: 'Describe the issue' },
+  { id: 2, label: 'Location', description: 'Pin the location' },
+  { id: 3, label: 'Photos', description: 'Upload issue images' },
   { id: 4, label: 'Review', description: 'Confirm and submit' },
 ]
 
