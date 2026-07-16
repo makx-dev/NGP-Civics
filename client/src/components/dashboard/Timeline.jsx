@@ -1,0 +1,6 @@
+import { timelineSteps } from '../../data/citizenDashboardData'
+
+export default function Timeline({ currentStatus }) {
+  const activeIndex = timelineSteps.indexOf(currentStatus)
+  return <div className="mt-5 rounded-xl border border-slate-700 bg-slate-950/30 p-4"><div className="mb-4 flex items-center justify-between"><p className="text-sm font-semibold text-white">Transparency timeline</p><span className="text-xs font-medium text-blue-400">{Math.round(((activeIndex + 1) / timelineSteps.length) * 100)}% complete</span></div><ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{timelineSteps.map((step, index) => { const state = index < activeIndex ? 'complete' : index === activeIndex ? 'current' : 'future'; return <li key={step} className="flex min-w-0 items-center gap-2.5"><span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[10px] font-bold ${state === 'complete' ? 'border-green-500 bg-green-500 text-slate-950' : state === 'current' ? 'border-blue-400 bg-blue-600 text-white' : 'border-slate-600 bg-slate-800 text-slate-500'}`}>{state === 'complete' ? '✓' : index + 1}</span><span className={`text-xs leading-4 ${state === 'complete' ? 'text-green-400' : state === 'current' ? 'font-semibold text-blue-300' : 'text-slate-500'}`}>{step}</span></li> })}</ol></div>
+}

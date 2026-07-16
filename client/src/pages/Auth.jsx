@@ -23,7 +23,7 @@ export default function Auth() {
   const isCitizen = selectedRole === 'citizen'
 
   return (
-    <main className="min-h-screen bg-[#0f172a] px-4 py-8 text-white sm:grid sm:place-items-center sm:p-8">
+    <main className="min-h-screen bg-black px-4 py-8 text-white sm:grid sm:place-items-center sm:p-8">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-8 lg:flex-row lg:justify-between">
         <div className="max-w-lg space-y-5 px-2 lg:px-0">
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-400">Municipal service portal</p>

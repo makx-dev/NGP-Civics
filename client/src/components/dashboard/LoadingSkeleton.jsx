@@ -1,0 +1,1 @@
+export default function LoadingSkeleton() { return <div className="space-y-5" aria-label="Loading dashboard"><div className="h-36 rounded-xl bg-slate-800" /><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[1,2,3,4].map((item) => <div key={item} className="h-36 rounded-xl bg-slate-800" />)}</div><div className="h-96 rounded-xl bg-slate-800" /></div> }
