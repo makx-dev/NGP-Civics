@@ -3,6 +3,7 @@ import Auth from './pages/Auth'
 import CitizenDashboard from './pages/CitizenDashboard'
 import CitizenProfile from './pages/CitizenProfile'
 import Dashboard from './pages/Dashboard'
+import AdminDashboard from './pages/AdminDashboard'
 import MyIssues from './pages/MyIssues'
 import Notifications from './pages/Notifications'
 import IssueDetails from './pages/IssueDetails'
@@ -24,7 +25,7 @@ export default function App() {
           <Route path="/citizen/report" element={<ReportIssue />} />
         </Route>
         <Route element={<ProtectedRoute role="admin" />}>
-          <Route path="/admin/dashboard" element={<Dashboard role="Authority" />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
         </Route>
         <Route path="*" element={<Navigate to="/auth" replace />} />
       </Routes>

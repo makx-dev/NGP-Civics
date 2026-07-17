@@ -185,10 +185,14 @@ export default function IssueDetails() {
   const layout = (content) => (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
       <Sidebar mobileOpen={mobileMenuOpen} expanded={sidebarExpanded} isMobile={isMobile} name={name} onClose={() => setMobileMenuOpen(false)} onLogout={signOut} />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <motion.div
+        animate={{ marginLeft: sidebarOffset }}
+        transition={{ duration: 0.25, ease: 'easeInOut' }}
+        className="flex min-w-0 flex-1 flex-col"
+      >
         <Navbar name={name} onMenu={() => (isMobile ? setMobileMenuOpen((o) => !o) : setSidebarExpanded((o) => !o))} />
         {content}
-      </div>
+      </motion.div>
     </div>
   )
 
