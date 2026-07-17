@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+
 const authRoutes = require('./routes/authRoutes');
 const issueRoutes = require('./routes/issueRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -7,6 +9,8 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const { apiLimiter } = require('./middleware/rateLimiters');
 
 const app = express();
+
+const clientDistPath = path.join(__dirname, '..', '..', 'client', 'dist');
 
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
@@ -30,8 +34,27 @@ app.use('/api/issues', issueRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/categories', categoryRoutes);
 
-app.use((_req, res) => {
-  res.status(404).json({ message: 'Route not found' });
+/**
+ * Serve React SPA and enable client-side routing on refresh.
+ * - /api/* keeps returning JSON 404 (below).
+ * - Any other GET path returns client/dist/index.html
+ */
+app.use(express.static(clientDistPath));
+
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+
+  res.sendFile(path.join(clientDistPath, 'index.html'), (err) => {
+    if (err) return next(err);
+  });
+});
+
+// API 404 for unknown routes (SPA fallback above handles non-/api GET requests)
+app.use((req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ message: 'Route not found' });
+  }
+  return res.sendStatus(404);
 });
 
 module.exports = app;
