@@ -349,7 +349,8 @@ export default function MyIssues() {
   const effectiveView = isMobile && viewMode === 'table' ? 'cards' : viewMode
 
   return (
-    <div className="min-h-screen overflow-x-clip bg-slate-950 text-slate-100">
+    <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100">
+      {/* offset handled by wrapper below */}
       <Sidebar
         mobileOpen={mobileMenuOpen}
         expanded={sidebarExpanded}
@@ -359,15 +360,14 @@ export default function MyIssues() {
         onLogout={signOut}
       />
 
-      <motion.div
-        initial={false}
-        animate={{ marginLeft: sidebarOffset }}
-        transition={{ duration: 0.25, ease: 'easeInOut' }}
-        className="min-w-0"
+      <div
+        className="flex min-w-0 flex-1 flex-col"
+        style={{ marginLeft: isMobile ? 0 : (sidebarExpanded ? 260 : 72) }}
       >
         <Navbar name={name} onMenu={toggleSidebar} />
 
-        <main className="mx-auto w-full min-w-0 max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <main className="flex-1 overflow-y-auto">
+          <div className="mx-auto w-full min-w-0 max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {/* Hero + Stats */}
           <Hero stats={stats} />
 
@@ -468,8 +468,9 @@ export default function MyIssues() {
               </>
             )}
           </div>
+          </div>
         </main>
-      </motion.div>
+      </div>
     </div>
   )
 }

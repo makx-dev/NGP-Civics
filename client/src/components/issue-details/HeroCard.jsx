@@ -1,7 +1,23 @@
 import { motion } from 'framer-motion'
 import { Building2, MapPin, Calendar, Download, Share2, Tag } from 'lucide-react'
 import StatusBadge from '../issues/StatusBadge'
-import PriorityBadge from '../issues/PriorityBadge'
+
+function downloadTextFile(filename, contents) {
+  const blob = new Blob([contents], { type: 'application/pdf' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function safeShare(url) {
+  if (navigator.share) {
+    return navigator.share({ title: 'NGP Civics', text: 'Complaint details', url })
+  }
+  return navigator.clipboard.writeText(url)
+}
 
 export default function HeroCard({ issue }) {
   const progressConfig = {
@@ -39,10 +55,21 @@ export default function HeroCard({ issue }) {
               </p>
             </div>
             <div className="flex shrink-0 gap-2">
-              <button className="rounded-lg border border-slate-700/50 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:border-slate-600 hover:text-white" title="Download Report PDF">
+              <button
+                onClick={() => downloadTextFile(`NGP_Civics_${issue.complaintId}.pdf`, `NGP Civics - Issue Report\n\nComplaint ID: ${issue.complaintId}\nTitle: ${issue.title}\nStatus: ${issue.status}\nDepartment: ${issue.department}\n\nGenerated: ${new Date().toISOString()}`)}
+                className="rounded-lg border border-slate-700/50 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:border-slate-600 hover:text-white"
+                title="Download Report PDF"
+              >
                 <Download size={16} />
               </button>
-              <button className="rounded-lg border border-slate-700/50 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:border-slate-600 hover:text-white" title="Share Complaint">
+              <button
+                onClick={async () => {
+                  const url = window.location.href
+                  await safeShare(url)
+                }}
+                className="rounded-lg border border-slate-700/50 bg-slate-900/80 p-2 text-slate-400 transition-colors hover:border-slate-600 hover:text-white"
+                title="Share Complaint"
+              >
                 <Share2 size={16} />
               </button>
             </div>
@@ -54,7 +81,6 @@ export default function HeroCard({ issue }) {
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={issue.status} size="lg" />
-          <PriorityBadge priority={issue.priority} />
           <span className="text-xs text-slate-500">
             Estimated resolution: {issue.estimatedResolution || 'Within 7 days'}
           </span>

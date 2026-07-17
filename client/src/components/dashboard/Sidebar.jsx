@@ -1,4 +1,4 @@
-import { Bell, CircleUserRound, FilePlus2, House, LogOut, Settings, UserRound, X } from 'lucide-react'
+import { Bell, CircleUserRound, FilePlus2, House, LogOut, UserRound, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useLocation, useNavigate } from 'react-router-dom'
 
@@ -8,7 +8,6 @@ const items = [
   { label: 'My Issues', icon: CircleUserRound, path: '/citizen/issues' },
   { label: 'Notifications', icon: Bell, path: '/citizen/notifications' },
   { label: 'Profile', icon: UserRound, path: '/citizen/profile' },
-  { label: 'Settings', icon: Settings, path: '/citizen/settings' },
 ]
 
 const transition = { duration: 0.25, ease: 'easeInOut' }
