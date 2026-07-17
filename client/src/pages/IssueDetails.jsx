@@ -87,7 +87,7 @@ function StickyTopBar({ issue, onCitizenAction, showCitizenCTA }) {
       initial={{ y: -12, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.25, ease: 'easeInOut' }}
-      className="sticky top-0 z-40 -mx-4 border-b border-slate-700/40 bg-slate-950/70 px-4 backdrop-blur"
+      className="relative z-40 border-b border-slate-700/40 bg-slate-950/70 px-4 backdrop-blur"
     >
       <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-0 py-3">
         <div className="min-w-0">
@@ -163,6 +163,7 @@ export default function IssueDetails() {
   }, [id])
 
   const name = getAuth()?.account?.name || 'Citizen'
+  // kept for future sidebar spacing logic (Sidebar is fixed-position)
   const sidebarOffset = isMobile ? 0 : sidebarExpanded ? 260 : 72
 
   const signOut = () => {
@@ -182,7 +183,7 @@ export default function IssueDetails() {
   const estimatedCompletion = issue.estimatedResolution || 'Within 7 days'
 
   const layout = (content) => (
-    <div className="flex h-screen overflow-hidden bg-slate-950 text-slate-100">
+    <div className="flex min-h-screen bg-slate-950 text-slate-100">
       <Sidebar mobileOpen={mobileMenuOpen} expanded={sidebarExpanded} isMobile={isMobile} name={name} onClose={() => setMobileMenuOpen(false)} onLogout={signOut} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Navbar name={name} onMenu={() => (isMobile ? setMobileMenuOpen((o) => !o) : setSidebarExpanded((o) => !o))} />
@@ -193,8 +194,10 @@ export default function IssueDetails() {
 
   if (isLoading) {
     return layout(
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1">
         <div className="mx-auto w-full min-w-0 max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <div className="pt-0" />
+
           <div className="h-28 w-full rounded-xl border border-slate-700/40 bg-slate-900/60" />
         </div>
       </main>
@@ -204,7 +207,7 @@ export default function IssueDetails() {
   return layout(
     <>
       <StickyTopBar issue={issue} onCitizenAction={onCitizenAction} showCitizenCTA={showCitizenCTA} />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1">
         <div className="mx-auto w-full min-w-0 max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
             {/* Main */}
@@ -282,7 +285,7 @@ export default function IssueDetails() {
 
             {/* Right side panel */}
             <aside className="hidden lg:block">
-              <div className="sticky top-[90px] space-y-4">
+              <div className="sticky top-[72px] space-y-4">
                 <div className="rounded-2xl border border-slate-700/40 bg-slate-900/60 p-5 backdrop-blur-sm shadow-xl shadow-black/10">
                     <div>
                       <p className="text-xs font-semibold text-slate-400">Status</p>
