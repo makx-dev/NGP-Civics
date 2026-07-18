@@ -41,20 +41,22 @@ app.use('/api/categories', categoryRoutes);
  */
 app.use(express.static(clientDistPath));
 
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) return next();
-
+// Express v5 + path-to-regexp can throw on wildcard routes like `*`.
+// Use an explicit regex-based fallback instead.
+app.get(/^(?!\/api\/).*/, (_req, res, next) => {
   res.sendFile(path.join(clientDistPath, 'index.html'), (err) => {
     if (err) return next(err);
   });
 });
 
-// API 404 for unknown routes (SPA fallback above handles non-/api GET requests)
+
+// API 404 for unknown routes
 app.use((req, res) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ message: 'Route not found' });
   }
   return res.sendStatus(404);
 });
+
 
 module.exports = app;
