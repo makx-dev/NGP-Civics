@@ -36,25 +36,23 @@ export default function PhotonSearch({ onSelect, onUseCurrentLocation }) {
       setIsLoading(true)
       try {
         const res = await fetch(
-          `${PHOTON_API}?q=${encodeURIComponent(value)}&limit=5&lang=en`
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(value)}&format=json&addressdetails=1&limit=5`
         )
         const data = await res.json()
-        const features = data.features || []
-        const mapped = features.map((f) => ({
-          id: f.properties.osm_id || Math.random().toString(36).slice(2),
-          label: f.properties.name || '',
-          address: f.properties.street || '',
-          city: f.properties.city || f.properties.town || f.properties.village || '',
-          state: f.properties.state || '',
-          country: f.properties.country || '',
-          lat: f.geometry.coordinates[1],
-          lng: f.geometry.coordinates[0],
-          fullAddress: f.properties.name
-            ? [f.properties.name, f.properties.street, f.properties.city || f.properties.town || f.properties.village, f.properties.state]
-                .filter(Boolean)
-                .join(', ')
-            : f.properties.osm_value || value,
-        }))
+        const mapped = data.map((f) => {
+          const address = f.address || {}
+          return {
+            id: f.place_id || Math.random().toString(36).slice(2),
+            label: f.name || f.display_name.split(',')[0] || '',
+            address: address.road || address.suburb || address.neighbourhood || '',
+            city: address.city || address.town || address.village || '',
+            state: address.state || '',
+            country: address.country || '',
+            lat: parseFloat(f.lat),
+            lng: parseFloat(f.lon),
+            fullAddress: f.display_name
+          }
+        })
         setSuggestions(mapped)
         setIsOpen(mapped.length > 0)
       } catch {
@@ -62,7 +60,7 @@ export default function PhotonSearch({ onSelect, onUseCurrentLocation }) {
       } finally {
         setIsLoading(false)
       }
-    }, 300)
+    }, 500) // Slightly longer debounce for Nominatim (Usage Policy recommends 1 req/sec max)
   }
 
   const handleSelect = (item) => {
