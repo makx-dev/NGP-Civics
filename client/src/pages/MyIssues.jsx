@@ -197,7 +197,7 @@ export default function MyIssues() {
   // ── Pagination ──
   const [currentPage, setCurrentPage] = useState(1)
 
-  const name = getAuth()?.account?.name || 'Manthan'
+  const name = getAuth()?.account?.name || 'Citizen'
   const sidebarOffset = isMobile ? 0 : sidebarExpanded ? 260 : 72
 
   // ── Simulate loading + read stored issues ──

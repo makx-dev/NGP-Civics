@@ -7,6 +7,7 @@ const issueRoutes = require('./routes/issueRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const { apiLimiter } = require('./middleware/rateLimiters');
+const { pingDatabase } = require('./utils/mongoPing');
 
 const app = express();
 
@@ -15,6 +16,33 @@ const clientDistPath = path.join(__dirname, '..', '..', 'client', 'dist');
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.set('trust proxy', 1);
+
+// Ping endpoint specifically to ping MongoDB and keep it awake
+app.get('/api/ping', async (_req, res) => {
+  const dbStatus = await pingDatabase();
+  const statusCode = dbStatus.ok ? 200 : 503;
+  return res.status(statusCode).json({
+    status: dbStatus.ok ? 'ok' : 'degraded',
+    message: dbStatus.ok ? 'MongoDB server is awake and responsive' : 'MongoDB ping failed',
+    database: dbStatus,
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Comprehensive health check route
+app.get('/api/health', async (_req, res) => {
+  const dbStatus = await pingDatabase();
+  const statusCode = dbStatus.ok ? 200 : 503;
+  return res.status(statusCode).json({
+    status: dbStatus.ok ? 'ok' : 'degraded',
+    service: 'NGP Civics API',
+    database: dbStatus,
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.use('/api', apiLimiter);
 
 app.get('/api', (_req, res) => {
@@ -23,10 +51,6 @@ app.get('/api', (_req, res) => {
 
 app.get('/', (_req, res) => {
   res.json({ status: 'ok', service: 'NGP Civics API', baseUrl: '/' });
-});
-
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'NGP Civics API' });
 });
 
 app.use('/api/auth', authRoutes);

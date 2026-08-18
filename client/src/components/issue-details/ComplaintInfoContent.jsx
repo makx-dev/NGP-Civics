@@ -4,7 +4,7 @@ export default function ComplaintInfoContent({ issue }) {
     { label: 'Priority', value: issue.priority },
     { label: 'Complaint ID', value: `#${issue.complaintId}` },
     { label: 'Department', value: issue.department },
-    { label: 'Reporter', value: issue.reporter || 'Manthan K.' },
+    { label: 'Reporter', value: issue.reporter || 'Citizen' },
     { label: 'Reported Date', value: issue.reportedDate },
     { label: 'Area', value: issue.area },
     { label: 'Ward', value: issue.ward || 'Ward 12' },

@@ -12,20 +12,10 @@ import ChangePasswordModal from '../components/profile/ChangePasswordModal'
 import NotificationSettingsModal from '../components/profile/NotificationSettingsModal'
 import LoadingSkeleton from '../components/profile/LoadingSkeleton'
 
-import { getAuth, clearAuth } from '../lib/auth'
+import api from '../lib/api'
+import { getAuth, saveAuth, clearAuth, getToken } from '../lib/auth'
 
-// ─── Mock data ─────────────────────────────────────────────────
-const mockProfile = {
-  name: 'Manthan Khotele',
-  email: 'manthankhotele7@gmail.com',
-  phone: '+91 9270343807',
-  address: '42, Shradha Park, Nagpur, Maharashtra 440001',
-  memberSince: '2024-09-15T00:00:00.000Z',
-  language: 'English, Hindi, Marathi',
-  image: null,
-}
-
-const mockNotificationSettings = {
+const defaultNotificationSettings = {
   email: true,
   push: true,
   verification: true,
@@ -42,7 +32,7 @@ export default function CitizenProfile() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches)
 
   const [profile, setProfile] = useState(null)
-  const [notificationSettings, setNotificationSettings] = useState(mockNotificationSettings)
+  const [notificationSettings, setNotificationSettings] = useState(defaultNotificationSettings)
   const [isLoading, setIsLoading] = useState(true)
   const [isSigningOut, setIsSigningOut] = useState(false)
 
@@ -62,18 +52,72 @@ export default function CitizenProfile() {
     return () => media.removeEventListener('change', updateMode)
   }, [])
 
-  // ── Simulated load ─────────────────────────────────────────
+  // ── Load authenticated user profile ─────────────────────────
   useEffect(() => {
     let mounted = true
-    const timer = setTimeout(() => {
-      if (mounted) {
-        setProfile(mockProfile)
-        setIsLoading(false)
-      }
-    }, 800)
+    const auth = getAuth()
+    const account = auth?.account || {}
+    const userId = account.id || account.email || 'guest'
+
+    let localSaved = null
+    try {
+      const raw = localStorage.getItem(`ngp_civics_profile_${userId}`)
+      if (raw) localSaved = JSON.parse(raw)
+    } catch {}
+
+    const baseProfile = {
+      name: account.name || '',
+      email: account.email || '',
+      phone: account.phone || '',
+      address: account.address || '',
+      memberSince: account.createdAt || '',
+      language: account.language || '',
+      image: null,
+      ...localSaved,
+    }
+
+    if (!baseProfile.name && account.name) baseProfile.name = account.name
+    if (!baseProfile.email && account.email) baseProfile.email = account.email
+
+    setProfile(baseProfile)
+
+    const token = getToken()
+    if (token) {
+      api.get('/auth/me')
+        .then(({ data }) => {
+          if (mounted && data?.user) {
+            const user = data.user
+            setProfile((prev) => ({
+              ...prev,
+              name: user.name || prev?.name || '',
+              email: user.email || prev?.email || '',
+              phone: user.phone || prev?.phone || '',
+              address: user.address || prev?.address || '',
+              language: user.language || prev?.language || '',
+              memberSince: user.createdAt || prev?.memberSince || '',
+            }))
+
+            const currAuth = getAuth()
+            if (currAuth) {
+              saveAuth({
+                token,
+                role: currAuth.role,
+                account: { ...currAuth.account, ...user },
+                remember: !!localStorage.getItem('ngp_civics_token'),
+              })
+            }
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (mounted) setIsLoading(false)
+        })
+    } else {
+      setIsLoading(false)
+    }
+
     return () => {
       mounted = false
-      clearTimeout(timer)
     }
   }, [])
 
@@ -94,13 +138,45 @@ export default function CitizenProfile() {
     setActiveModal(key)
   }, [signOut])
 
-  const handleEditSave = useCallback((updated) => {
-    setProfile((prev) => ({ ...prev, ...updated }))
+  const handleEditSave = useCallback(async (updated) => {
+    setProfile((prev) => {
+      const next = { ...prev, ...updated }
+      const auth = getAuth()
+      const userId = auth?.account?.id || auth?.account?.email || 'guest'
+      try {
+        localStorage.setItem(`ngp_civics_profile_${userId}`, JSON.stringify(next))
+      } catch {}
+
+      if (auth) {
+        saveAuth({
+          token: getToken(),
+          role: auth.role,
+          account: {
+            ...auth.account,
+            name: next.name,
+            phone: next.phone,
+            address: next.address,
+            language: next.language,
+          },
+          remember: !!localStorage.getItem('ngp_civics_token'),
+        })
+      }
+      return next
+    })
+
+    try {
+      await api.patch('/auth/profile', updated)
+    } catch (e) {
+      console.error('Failed to sync profile to server:', e)
+    }
   }, [])
 
-  const handlePasswordChange = useCallback(({ currentPassword, newPassword }) => {
-    // API call would go here
-    console.log('Password changed')
+  const handlePasswordChange = useCallback(async ({ currentPassword, newPassword }) => {
+    try {
+      await api.post('/auth/change-password', { currentPassword, newPassword })
+    } catch (e) {
+      console.error('Failed to change password:', e)
+    }
   }, [])
 
   const handleNotificationSave = useCallback((settings) => {

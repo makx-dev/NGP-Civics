@@ -41,7 +41,7 @@ const defaultIssue = {
   status: 'In Progress',
   estimatedResolution: '3 days',
   image: null,
-  reporter: 'Manthan K.',
+  reporter: 'Citizen',
   ward: 'Ward 12',
   lat: 21.1458,
   lng: 79.0882,

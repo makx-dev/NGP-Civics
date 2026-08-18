@@ -28,7 +28,7 @@ export default function ProfileCard({ name, email, image, isLoading }) {
 
         <div className="text-center">
           <h1 className="text-xl font-semibold text-white">{name || 'Citizen'}</h1>
-          <p className="mt-0.5 text-sm text-slate-400">{email || 'citizen@ngp.gov.in'}</p>
+          <p className="mt-0.5 text-sm text-slate-400">{email || '—'}</p>
         </div>
 
         <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 px-3.5 py-1 text-xs font-medium text-blue-400">

@@ -5,15 +5,17 @@ const fields = [
   { key: 'name', label: 'Full Name', icon: User },
   { key: 'email', label: 'Email Address', icon: Mail },
   { key: 'phone', label: 'Phone Number', icon: Phone },
-  { key: 'address', label: 'Address', icon: MapPin, optional: true },
+  { key: 'address', label: 'Address', icon: MapPin },
   { key: 'memberSince', label: 'Member Since', icon: Calendar },
-  { key: 'language', label: 'Language', icon: Globe, optional: true },
+  { key: 'language', label: 'Language', icon: Globe },
 ]
 
 function formatValue(value, key) {
   if (!value) return '—'
   if (key === 'memberSince') {
-    return new Date(value).toLocaleDateString('en-IN', {
+    const d = new Date(value)
+    if (isNaN(d.getTime())) return '—'
+    return d.toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -57,9 +59,6 @@ export default function AccountInfoCard({ data, isLoading }) {
         {fields.map((field) => {
           const Icon = field.icon
           const value = data?.[field.key]
-          const isVisible = value || !field.optional
-
-          if (!isVisible) return null
 
           return (
             <div key={field.key} className="flex items-start gap-3">
