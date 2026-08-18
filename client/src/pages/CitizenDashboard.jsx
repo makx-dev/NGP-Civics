@@ -21,7 +21,7 @@ export default function CitizenDashboard() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches)
   const [isLoading] = useState(false)
   const navigate = useNavigate()
-  const name = getAuth()?.account?.name || 'Manthan'
+  const name = getAuth()?.account?.name || 'Citizen'
   const signOut = () => { clearAuth(); navigate('/auth') }
 
   useEffect(() => {

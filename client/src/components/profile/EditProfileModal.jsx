@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, User, Mail, Phone, MapPin, ImageUp, Loader2 } from 'lucide-react'
+import { X, User, Mail, Phone, MapPin, Globe, ImageUp, Loader2 } from 'lucide-react'
 import Avatar from './Avatar'
 
 const backdrop = {
@@ -20,7 +20,7 @@ const modal = {
 }
 
 export default function EditProfileModal({ isOpen, onClose, data, onSave }) {
-  const [form, setForm] = useState({ name: '', phone: '', address: '' })
+  const [form, setForm] = useState({ name: '', phone: '', address: '', language: '' })
   const [imagePreview, setImagePreview] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const fileRef = useRef(null)
@@ -32,6 +32,7 @@ export default function EditProfileModal({ isOpen, onClose, data, onSave }) {
         name: data.name || '',
         phone: data.phone || '',
         address: data.address || '',
+        language: data.language || '',
       })
       setImagePreview(null)
     }
@@ -63,6 +64,7 @@ export default function EditProfileModal({ isOpen, onClose, data, onSave }) {
       name: form.name.trim(),
       phone: form.phone.trim(),
       address: form.address.trim(),
+      language: form.language.trim(),
       image: imagePreview || data?.image,
     })
     setIsSubmitting(false)
@@ -202,6 +204,27 @@ export default function EditProfileModal({ isOpen, onClose, data, onSave }) {
                     onChange={(e) => setForm({ ...form, address: e.target.value })}
                     placeholder="Your residential address"
                     className="min-w-0 flex-1 resize-none bg-transparent text-white outline-none placeholder:text-slate-600"
+                  />
+                </div>
+              </div>
+
+              {/* Language */}
+              <div>
+                <label
+                  htmlFor="edit-language"
+                  className="mb-1.5 block text-xs font-medium text-slate-400"
+                >
+                  Preferred Language <span className="text-slate-600">(optional)</span>
+                </label>
+                <div className="flex items-center gap-2.5 rounded-xl border border-slate-700/50 bg-slate-800/50 px-3.5 py-2.5 text-sm transition-colors focus-within:border-slate-600">
+                  <Globe size={16} className="shrink-0 text-slate-500" />
+                  <input
+                    id="edit-language"
+                    type="text"
+                    value={form.language}
+                    onChange={(e) => setForm({ ...form, language: e.target.value })}
+                    placeholder="e.g. English, Hindi, Marathi"
+                    className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-slate-600"
                   />
                 </div>
               </div>

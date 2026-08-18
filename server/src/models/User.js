@@ -27,6 +27,18 @@ const userSchema = new mongoose.Schema(
       trim: true,
       maxlength: 20,
     },
+    address: {
+      type: String,
+      trim: true,
+      maxlength: 250,
+      default: '',
+    },
+    language: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      default: '',
+    },
   },
   { timestamps: true }
 );

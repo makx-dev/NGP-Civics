@@ -1,5 +1,5 @@
 const history = [
-  { status: 'Submitted', updatedBy: 'Manthan K.', dept: 'Citizen', date: '12 Jul 2026', time: '09:15 AM', remarks: 'Complaint submitted via NGP Civics portal' },
+  { status: 'Submitted', updatedBy: 'Citizen', dept: 'Citizen', date: '12 Jul 2026', time: '09:15 AM', remarks: 'Complaint submitted via NGP Civics portal' },
   { status: 'Assigned', updatedBy: 'Rahul Sharma', dept: 'NMC Control Room', date: '12 Jul 2026', time: '11:30 AM', remarks: 'Assigned to Road Department' },
   { status: 'Engineer Assigned', updatedBy: 'Amit Verma', dept: 'NMC Road Department', date: '13 Jul 2026', time: '08:00 AM', remarks: 'Engineer assigned for inspection' },
   { status: 'Inspection', updatedBy: 'Amit Verma', dept: 'NMC Road Department', date: '14 Jul 2026', time: '10:15 AM', remarks: 'Inspection completed. Work order issued.' },

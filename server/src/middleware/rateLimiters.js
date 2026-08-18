@@ -6,6 +6,7 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many requests, please try again later.' },
+  skip: (req) => req.path === '/health' || req.path === '/ping',
 });
 
 const authLimiter = rateLimit({
