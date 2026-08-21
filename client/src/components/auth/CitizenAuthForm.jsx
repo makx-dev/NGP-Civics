@@ -51,7 +51,13 @@ export default function CitizenAuthForm({ onSuccess, onError }) {
         message: 'Signed in with Google successfully.',
       })
     } catch (error) {
-      onError(error.response?.data?.message || 'Google authentication failed. Please try again.')
+      const errorMessage =
+        error.response?.data?.message ||
+        (error.message === 'Network Error'
+          ? 'Network Error: Cannot connect to backend API server.'
+          : error.message) ||
+        'Google authentication failed. Please try again.'
+      onError(errorMessage)
     }
   }
 
