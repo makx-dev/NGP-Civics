@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const Admin = require('../models/Admin');
 const { signToken } = require('../utils/token');
@@ -8,6 +9,74 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(authLimiter);
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+router.post('/google', async (req, res) => {
+  try {
+    const { credential } = req.body || {};
+    if (!credential) {
+      return res.status(400).json({ message: 'Google credential is required' });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      return res.status(400).json({ message: 'Invalid Google token payload' });
+    }
+
+    const { sub: googleId, email, name, picture } = payload;
+    const normalizedEmail = email.toLowerCase();
+
+    let user = await User.findOne({ email: normalizedEmail });
+
+    if (user) {
+      // Update existing user with Google ID and avatar if not present
+      let needsSave = false;
+      if (!user.googleId) {
+        user.googleId = googleId;
+        needsSave = true;
+      }
+      if (!user.avatar && picture) {
+        user.avatar = picture;
+        needsSave = true;
+      }
+      if (needsSave) {
+        await user.save();
+      }
+    } else {
+      // Create new citizen user
+      user = await User.create({
+        name: name || 'Citizen',
+        email: normalizedEmail,
+        googleId,
+        avatar: picture || '',
+      });
+    }
+
+    const token = signToken({ id: user._id, role: 'user' });
+    return res.json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || '',
+        address: user.address || '',
+        language: user.language || '',
+        avatar: user.avatar || '',
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error('Google OAuth error:', error);
+    return res.status(401).json({ message: 'Google authentication failed. Please try again.' });
+  }
+});
 
 router.post('/register', async (req, res) => {
   try {
@@ -118,6 +187,7 @@ router.get('/me', protect('user'), async (req, res) => {
         phone: user.phone || '',
         address: user.address || '',
         language: user.language || '',
+        avatar: user.avatar || '',
         createdAt: user.createdAt,
       },
     });

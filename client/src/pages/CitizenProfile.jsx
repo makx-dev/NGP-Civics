@@ -94,6 +94,7 @@ export default function CitizenProfile() {
               phone: user.phone || prev?.phone || '',
               address: user.address || prev?.address || '',
               language: user.language || prev?.language || '',
+              image: user.avatar || prev?.image || null,
               memberSince: user.createdAt || prev?.memberSince || '',
             }))
 

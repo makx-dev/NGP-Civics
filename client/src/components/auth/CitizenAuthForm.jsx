@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { GoogleLogin } from '@react-oauth/google'
 import { LoaderCircle } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -37,11 +38,50 @@ export default function CitizenAuthForm({ onSuccess, onError }) {
     }
   }
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      const { data } = await api.post('/auth/google', {
+        credential: credentialResponse.credential,
+      })
+      onSuccess({
+        token: data.token,
+        role: 'user',
+        account: data.user,
+        remember: true,
+        message: 'Signed in with Google successfully.',
+      })
+    } catch (error) {
+      onError(error.response?.data?.message || 'Google authentication failed. Please try again.')
+    }
+  }
+
+  const handleGoogleError = () => {
+    onError('Google Sign-In was cancelled or encountered an error.')
+  }
+
   return (
     <div>
       <div className="mb-7 grid grid-cols-2 rounded-xl bg-slate-950/50 p-1">
         {['login', 'register'].map((tab) => <button key={tab} type="button" onClick={() => setMode(tab)} className={`rounded-lg px-3 py-2 text-sm font-medium capitalize transition-colors ${mode === tab ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>{tab}</button>)}
       </div>
+
+      <div className="mb-5 flex justify-center">
+        <GoogleLogin
+          theme="filled_black"
+          shape="pill"
+          size="large"
+          text={mode === 'login' ? 'signin_with' : 'signup_with'}
+          onSuccess={handleGoogleSuccess}
+          onError={handleGoogleError}
+        />
+      </div>
+
+      <div className="relative mb-5 flex items-center justify-center">
+        <div className="w-full border-t border-slate-800" />
+        <span className="bg-slate-900/90 px-3 text-xs font-medium uppercase tracking-wider text-slate-500">or with email</span>
+        <div className="w-full border-t border-slate-800" />
+      </div>
+
       <form className="space-y-4" onSubmit={handleSubmit(submit)} noValidate>
         {mode === 'register' && <InputField label="Full name" placeholder="Aarav Sharma" error={errors.name?.message} {...register('name')} />}
         <InputField label="Email" type="email" autoComplete="email" placeholder="you@example.com" error={errors.email?.message} {...register('email')} />
@@ -57,3 +97,4 @@ export default function CitizenAuthForm({ onSuccess, onError }) {
     </div>
   )
 }
+
