@@ -10,7 +10,11 @@ const { protect } = require('../middleware/auth');
 const router = express.Router();
 router.use(authLimiter);
 
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const GOOGLE_CLIENT_ID =
+  process.env.GOOGLE_CLIENT_ID ||
+  '658984037649-hfte97l34jn5qtjgk0jok5p86ruk2562.apps.googleusercontent.com';
+
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 router.post('/google', async (req, res) => {
   try {
@@ -21,7 +25,7 @@ router.post('/google', async (req, res) => {
 
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
@@ -35,7 +39,6 @@ router.post('/google', async (req, res) => {
     let user = await User.findOne({ email: normalizedEmail });
 
     if (user) {
-      // Update existing user with Google ID and avatar if not present
       let needsSave = false;
       if (!user.googleId) {
         user.googleId = googleId;
@@ -49,7 +52,6 @@ router.post('/google', async (req, res) => {
         await user.save();
       }
     } else {
-      // Create new citizen user
       user = await User.create({
         name: name || 'Citizen',
         email: normalizedEmail,
@@ -74,7 +76,9 @@ router.post('/google', async (req, res) => {
     });
   } catch (error) {
     console.error('Google OAuth error:', error);
-    return res.status(401).json({ message: 'Google authentication failed. Please try again.' });
+    return res.status(401).json({
+      message: error.message || 'Google authentication failed. Please try again.',
+    });
   }
 });
 
