@@ -25,3 +25,19 @@ export const clearAuth = () => {
   sessionStorage.removeItem(TOKEN_KEY)
   sessionStorage.removeItem(USER_KEY)
 }
+
+export const isAdmin = () => {
+  const auth = getAuth()
+  return auth?.role === 'admin'
+}
+
+export const isCitizen = () => {
+  const auth = getAuth()
+  return auth?.role === 'user' || auth?.role === 'citizen'
+}
+
+export const getDepartment = () => {
+  const auth = getAuth()
+  return auth?.account?.department || 'Municipal Administration'
+}
+

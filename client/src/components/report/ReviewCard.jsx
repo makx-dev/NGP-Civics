@@ -1,14 +1,30 @@
-import React from 'react'
-import { categories } from '../../data/reportIssueData'
-
-const priorityColors = {
-  low: 'text-green-400 border-green-500/30 bg-green-500/10',
-  medium: 'text-amber-400 border-amber-500/30 bg-amber-500/10',
-  high: 'text-red-400 border-red-500/30 bg-red-500/10',
-}
+import React, { useEffect, useState } from 'react'
+import { Tag } from 'lucide-react'
+import api from '../../lib/api'
 
 export default function ReviewCard({ formData, onEdit }) {
-  const category = categories.find((c) => c.id === formData.category)
+  const [categoryName, setCategoryName] = useState('')
+
+  useEffect(() => {
+    let isMounted = true
+    ;(async () => {
+      try {
+        const res = await api.get('/categories')
+        if (isMounted && Array.isArray(res.data)) {
+          const match = res.data.find(
+            (c) => c._id === formData.category || c.id === formData.category || c.name === formData.category
+          )
+          if (match) setCategoryName(match.name)
+          else setCategoryName(typeof formData.category === 'object' ? formData.category?.name : formData.category)
+        }
+      } catch {
+        if (isMounted) setCategoryName(typeof formData.category === 'object' ? formData.category?.name : formData.category)
+      }
+    })()
+    return () => {
+      isMounted = false
+    }
+  }, [formData.category])
 
   return (
     <div className="space-y-6">
@@ -21,13 +37,13 @@ export default function ReviewCard({ formData, onEdit }) {
 
       <div className="space-y-5">
         {/* Photos */}
-        <SectionCard label="Photos" onEdit={() => onEdit(1)}>
+        <SectionCard label="Photos" onEdit={() => onEdit(3)}>
           {formData.photos.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {formData.photos.map((file, i) => (
                 <div key={file.uid || i} className="relative h-16 w-16 overflow-hidden rounded-lg border border-slate-700 sm:h-20 sm:w-20">
                   <img
-                    src={file.preview || URL.createObjectURL(file)}
+                    src={file.preview || (typeof file === 'string' ? file : URL.createObjectURL(file))}
                     alt={`Photo ${i + 1}`}
                     className="h-full w-full object-cover"
                   />
@@ -40,11 +56,11 @@ export default function ReviewCard({ formData, onEdit }) {
         </SectionCard>
 
         {/* Category */}
-        <SectionCard label="Category" onEdit={() => onEdit(2)}>
-          {category ? (
+        <SectionCard label="Category" onEdit={() => onEdit(1)}>
+          {categoryName ? (
             <div className="inline-flex items-center gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-3 py-1.5">
-              <span className="text-blue-400">{React.createElement(category.icon, { size: 18 })}</span>
-              <span className="text-sm font-medium text-blue-400">{category.label}</span>
+              <Tag size={16} className="text-blue-400" />
+              <span className="text-sm font-medium text-blue-400">{categoryName}</span>
             </div>
           ) : (
             <p className="text-sm text-slate-500">Not selected</p>
@@ -62,31 +78,18 @@ export default function ReviewCard({ formData, onEdit }) {
           </SectionCard>
         )}
 
-        {/* Priority */}
-        {formData.priority && (
-          <SectionCard label="Priority" onEdit={() => onEdit(2)}>
-            <span
-              className={`inline-block rounded-xl border px-3 py-1.5 text-sm font-medium ${
-                priorityColors[formData.priority] || 'border-slate-700 text-slate-400'
-              }`}
-            >
-              {formData.priority.charAt(0).toUpperCase() + formData.priority.slice(1)}
-            </span>
-          </SectionCard>
-        )}
-
         {/* Location */}
         <SectionCard label="Location" onEdit={() => onEdit(3)}>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <span className="text-xs text-slate-500">Latitude</span>
-              <p className="mt-0.5 font-mono text-slate-200">{formData.location.lat.toFixed(6)}</p>
+              <p className="mt-0.5 font-mono text-slate-200">{formData.location?.lat?.toFixed ? formData.location.lat.toFixed(6) : formData.location?.lat}</p>
             </div>
             <div>
               <span className="text-xs text-slate-500">Longitude</span>
-              <p className="mt-0.5 font-mono text-slate-200">{formData.location.lng.toFixed(6)}</p>
+              <p className="mt-0.5 font-mono text-slate-200">{formData.location?.lng?.toFixed ? formData.location.lng.toFixed(6) : formData.location?.lng}</p>
             </div>
-            {formData.location.address && (
+            {formData.location?.address && (
               <div className="col-span-2">
                 <span className="text-xs text-slate-500">Address</span>
                 <p className="mt-0.5 text-slate-200">{formData.location.address}</p>

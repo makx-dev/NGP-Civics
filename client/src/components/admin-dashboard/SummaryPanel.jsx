@@ -1,103 +1,131 @@
-import { Bell, Building2, ShieldCheck, UsersRound, FileText } from 'lucide-react'
+import { Bell, Building2, CheckCircle2, Clock3, FileText, ShieldCheck, UsersRound } from 'lucide-react'
 
 export default function SummaryPanel({ counts, onQuickAction, onSelectFilter }) {
   return (
     <div className="sticky top-[72px] space-y-4">
-      <div className="rounded-2xl border border-slate-700/40 bg-slate-900/60 p-5 backdrop-blur-sm shadow-xl shadow-black/10">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl shadow-black/20 backdrop-blur-sm">
         <div>
-          <p className="text-xs font-semibold text-slate-400">Command summary</p>
-          <h3 className="mt-1 text-base font-semibold tracking-tight text-white">What needs attention</h3>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-400">Command Summary</p>
+          <h3 className="mt-1 text-base font-bold tracking-tight text-white">Action Required</h3>
         </div>
 
-        <div className="mt-4 grid gap-3">
+        <div className="mt-4 grid gap-2.5">
           <button
+            type="button"
             onClick={() => onSelectFilter?.({ type: 'Pending' })}
-            className="rounded-xl border border-slate-700 bg-slate-950/30 p-3 text-left transition-colors hover:border-slate-600/60"
+            className="group rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-left transition-all hover:border-slate-700 hover:bg-slate-900"
           >
             <div className="flex items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2">
-                <Bell size={16} className="text-blue-300" /> Pending
+              <span className="inline-flex items-center gap-2.5 text-xs font-medium text-slate-300">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <Bell size={13} />
+                </span>
+                Pending Review
               </span>
-              <span className="font-semibold text-white">{counts?.Pending ?? 0}</span>
+              <span className="font-mono text-sm font-bold text-white">{counts?.Pending ?? 0}</span>
             </div>
           </button>
 
           <button
+            type="button"
             onClick={() => onSelectFilter?.({ type: 'Overdue' })}
-            className="rounded-xl border border-slate-700 bg-slate-950/30 p-3 text-left transition-colors hover:border-slate-600/60"
+            className="group rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-left transition-all hover:border-slate-700 hover:bg-slate-900"
           >
             <div className="flex items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2">
-                <Bell size={16} className="text-red-300" /> Overdue
+              <span className="inline-flex items-center gap-2.5 text-xs font-medium text-slate-300">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <Clock3 size={13} />
+                </span>
+                Overdue Work
               </span>
-              <span className="font-semibold text-white">{counts?.Overdue ?? 0}</span>
+              <span className="font-mono text-sm font-bold text-white">{counts?.Overdue ?? 0}</span>
             </div>
           </button>
 
           <button
+            type="button"
             onClick={() => onSelectFilter?.({ type: 'Citizen Verification' })}
-            className="rounded-xl border border-slate-700 bg-slate-950/30 p-3 text-left transition-colors hover:border-slate-600/60"
+            className="group rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-left transition-all hover:border-slate-700 hover:bg-slate-900"
           >
             <div className="flex items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2">
-                <ShieldCheck size={16} className="text-cyan-200" /> Citizen verification pending
+              <span className="inline-flex items-center gap-2.5 text-xs font-medium text-slate-300">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <ShieldCheck size={13} />
+                </span>
+                Citizen Verification
               </span>
-              <span className="font-semibold text-white">{counts?.CitizenVerificationPending ?? 0}</span>
+              <span className="font-mono text-sm font-bold text-white">{counts?.CitizenVerificationPending ?? 0}</span>
             </div>
           </button>
 
           <button
-            onClick={() => onSelectFilter?.({ type: 'ResolvedToday' })}
-            className="rounded-xl border border-slate-700 bg-slate-950/30 p-3 text-left transition-colors hover:border-slate-600/60"
+            type="button"
+            onClick={() => onSelectFilter?.({ type: 'Resolved' })}
+            className="group rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-left transition-all hover:border-slate-700 hover:bg-slate-900"
           >
             <div className="flex items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2">
-                <UsersRound size={16} className="text-green-200" /> Resolved today
+              <span className="inline-flex items-center gap-2.5 text-xs font-medium text-slate-300">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <CheckCircle2 size={13} />
+                </span>
+                Resolved Today
               </span>
-              <span className="font-semibold text-white">{counts?.ResolvedToday ?? 0}</span>
+              <span className="font-mono text-sm font-bold text-white">{counts?.ResolvedToday ?? 0}</span>
             </div>
           </button>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-700/40 bg-slate-900/60 p-5 backdrop-blur-sm">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-xl shadow-black/20 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold text-slate-400">Quick actions</p>
-            <p className="mt-1 text-sm font-semibold text-white">Execute common admin tasks</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-400">Quick Actions</p>
+            <p className="mt-1 text-sm font-bold text-white">Administrative Tools</p>
           </div>
         </div>
 
         <div className="mt-4 grid gap-2">
           <button
+            type="button"
             onClick={() => onQuickAction?.('ManageDepartments')}
-            className="flex items-center justify-between gap-3 rounded-xl border border-slate-700 bg-slate-950/30 px-3 py-2 text-left text-xs font-semibold text-slate-200 transition-colors hover:border-slate-600/70 hover:bg-slate-800/30"
+            className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/50 px-3.5 py-2.5 text-left text-xs font-medium text-slate-200 transition-all hover:border-slate-700 hover:bg-slate-900 hover:text-white"
           >
-            <span className="inline-flex items-center gap-2"><Building2 size={15} /> Manage Departments</span>
+            <span className="inline-flex items-center gap-2">
+              <Building2 size={15} className="text-blue-400" /> Manage Departments
+            </span>
             <span className="text-slate-500">→</span>
           </button>
 
           <button
+            type="button"
             onClick={() => onQuickAction?.('ManageUsers')}
-            className="flex items-center justify-between gap-3 rounded-xl border border-slate-700 bg-slate-950/30 px-3 py-2 text-left text-xs font-semibold text-slate-200 transition-colors hover:border-slate-600/70 hover:bg-slate-800/30"
+            className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/50 px-3.5 py-2.5 text-left text-xs font-medium text-slate-200 transition-all hover:border-slate-700 hover:bg-slate-900 hover:text-white"
           >
-            <span className="inline-flex items-center gap-2"><UsersRound size={15} /> Manage Users</span>
+            <span className="inline-flex items-center gap-2">
+              <UsersRound size={15} className="text-blue-400" /> Manage Users
+            </span>
             <span className="text-slate-500">→</span>
           </button>
 
           <button
+            type="button"
             onClick={() => onQuickAction?.('GenerateReports')}
-            className="flex items-center justify-between gap-3 rounded-xl border border-slate-700 bg-slate-950/30 px-3 py-2 text-left text-xs font-semibold text-slate-200 transition-colors hover:border-slate-600/70 hover:bg-slate-800/30"
+            className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/50 px-3.5 py-2.5 text-left text-xs font-medium text-slate-200 transition-all hover:border-slate-700 hover:bg-slate-900 hover:text-white"
           >
-            <span className="inline-flex items-center gap-2"><FileText size={15} /> Generate Reports</span>
+            <span className="inline-flex items-center gap-2">
+              <FileText size={15} className="text-blue-400" /> Generate Reports
+            </span>
             <span className="text-slate-500">→</span>
           </button>
 
           <button
+            type="button"
             onClick={() => onQuickAction?.('ViewAllIssues')}
-            className="flex items-center justify-between gap-3 rounded-xl border border-slate-700 bg-slate-950/30 px-3 py-2 text-left text-xs font-semibold text-slate-200 transition-colors hover:border-slate-600/70 hover:bg-slate-800/30"
+            className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/50 px-3.5 py-2.5 text-left text-xs font-medium text-slate-200 transition-all hover:border-slate-700 hover:bg-slate-900 hover:text-white"
           >
-            <span className="inline-flex items-center gap-2"><Bell size={15} /> View all issues</span>
+            <span className="inline-flex items-center gap-2">
+              <Bell size={15} className="text-blue-400" /> View All Issues
+            </span>
             <span className="text-slate-500">→</span>
           </button>
         </div>
@@ -105,4 +133,5 @@ export default function SummaryPanel({ counts, onQuickAction, onSelectFilter }) 
     </div>
   )
 }
+
 

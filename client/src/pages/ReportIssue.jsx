@@ -12,9 +12,7 @@ import ReviewCard from '../components/report/ReviewCard'
 import SuccessModal from '../components/report/SuccessModal'
 import LoadingSkeleton from '../components/report/LoadingSkeleton'
 import { defaultFormValues } from '../lib/validation'
-import { mockSubmitResponse } from '../data/reportIssueData'
 import api from '../lib/api'
-import { addIssue } from '../lib/issuesStore'
 
 const STORAGE_KEY = 'ngp_report_issue_draft'
 
@@ -48,7 +46,7 @@ export default function ReportIssue() {
 
   // Simulate initial load
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 600)
+    const timer = setTimeout(() => setIsLoading(false), 400)
     return () => clearTimeout(timer)
   }, [])
 
@@ -58,7 +56,6 @@ export default function ReportIssue() {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
         const parsed = JSON.parse(saved)
-        // Reconstruct photos from stored metadata (cannot store File objects)
         if (parsed.photos && Array.isArray(parsed.photos)) {
           parsed.photos = parsed.photos.filter((p) => p.preview)
         }
@@ -103,7 +100,6 @@ export default function ReportIssue() {
 
   const updateField = useCallback((field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-    // Clear field error on change
     setErrors((prev) => {
       const next = { ...prev }
       if (field === 'location') {
@@ -182,73 +178,58 @@ export default function ReportIssue() {
     }
     setIsSubmitting(true)
     try {
-      // Try real API first, fallback to mock
-      const formPayload = new FormData()
-      formData.photos.forEach((file) => formPayload.append('photos', file))
-      formPayload.append('category', formData.category)
-      formPayload.append('title', formData.title)
-      formPayload.append('description', formData.description)
-      formPayload.append('priority', formData.priority || '')
-      formPayload.append('lat', formData.location.lat)
-      formPayload.append('lng', formData.location.lng)
-      formPayload.append('address', formData.location.address)
-      formPayload.append('area', formData.location.area || '')
-      formPayload.append('ward', formData.location.ward || '')
-      formPayload.append('city', formData.location.city || '')
-
-      let result
+      // 1. Resolve Category ID from backend if needed
+      let categoryId = formData.category
       try {
-        const response = await api.post('/issues/report', formPayload, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        })
-        result = response.data
-      } catch {
-        // Fallback to mock
-        await new Promise((resolve) => setTimeout(resolve, 1500))
-        result = {
-          ...mockSubmitResponse,
-          complaintId: `NGP-2026-${String(Math.floor(Math.random() * 900000) + 100000)}`,
+        const catRes = await api.get('/categories')
+        if (Array.isArray(catRes.data) && catRes.data.length > 0) {
+          const matched = catRes.data.find(
+            (c) => c._id === formData.category ||
+                   c.name.toLowerCase().includes(String(formData.category).toLowerCase()) ||
+                   String(formData.category).toLowerCase().includes(c.name.toLowerCase())
+          )
+          if (matched) {
+            categoryId = matched._id
+          } else if (!formData.category || !formData.category.match(/^[0-9a-fA-F]{24}$/)) {
+            categoryId = catRes.data[0]._id
+          }
         }
+      } catch (err) {
+        console.warn('Categories lookup warning:', err.message)
       }
 
-      setComplaintId(result.complaintId)
+      // Format photos array for backend
+      const formattedPhotos = (formData.photos || []).map((p, idx) => ({
+        url: p.preview || (typeof p === 'string' ? p : 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&w=800&q=80'),
+        caption: p.name || `Photo ${idx + 1}`,
+      }))
+
+      // JSON payload expected by POST /api/issues
+      const payload = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        category: categoryId,
+        location: {
+          lat: typeof formData.location?.lat === 'number' ? formData.location.lat : 21.1458,
+          lng: typeof formData.location?.lng === 'number' ? formData.location.lng : 79.0882,
+          address: formData.location?.address?.trim() || 'Nagpur, Maharashtra',
+        },
+        photos: formattedPhotos.slice(0, 5),
+        priority: 'Medium',
+      }
+
+      // Save directly to MongoDB
+      const response = await api.post('/issues', payload)
+      const savedIssue = response.data
+
+      const assignedComplaintId = savedIssue.complaintId || `NGP-${String(savedIssue._id || Date.now()).slice(-6).toUpperCase()}`
+      setComplaintId(assignedComplaintId)
       setShowSuccess(true)
       hasUnsaved.current = false
       localStorage.removeItem(STORAGE_KEY)
-
-      // Save to local issues store so it appears in My Issues
-      const categoryMap = {
-        'road-damage': 'Road',
-        garbage: 'Garbage',
-        'street-light': 'Street Light',
-        'water-leakage': 'Water',
-        drainage: 'Drainage',
-        'illegal-parking': 'Traffic',
-        encroachment: 'Encroachment',
-        'traffic-signal': 'Traffic',
-        'public-property-damage': 'Road',
-        other: 'Other',
-      }
-
-      const priorityMap = { low: 'Low', medium: 'Medium', high: 'High' }
-
-      const newIssue = {
-        id: `submitted-${Date.now()}`,
-        complaintId: result.complaintId,
-        title: formData.title,
-        category: categoryMap[formData.category] || formData.category,
-        department: 'NMC Department',
-        area: formData.location.area || formData.location.address?.split(',').slice(-2, -1)[0]?.trim() || 'Nagpur',
-        priority: priorityMap[formData.priority] || 'Medium',
-        status: 'Pending',
-        reportedDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-        lastUpdated: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-        image: formData.photos?.[0]?.preview || null,
-        currentStage: 'Awaiting initial review by the concerned department.',
-      }
-      addIssue(newIssue)
-    } catch {
-      setErrors({ submit: 'Failed to submit report. Please try again.' })
+    } catch (err) {
+      console.error('Submit error:', err)
+      setErrors({ submit: err.response?.data?.message || 'Failed to submit report. Please check the form fields and try again.' })
     } finally {
       setIsSubmitting(false)
     }

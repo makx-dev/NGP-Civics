@@ -12,140 +12,7 @@ import EmptyState from '../components/notifications/EmptyState'
 import LoadingSkeleton from '../components/notifications/LoadingSkeleton'
 
 import { getAuth, clearAuth } from '../lib/auth'
-
-// ─── Mock data ─────────────────────────────────────────────────
-const mockNotifications = [
-  {
-    _id: 'n1',
-    type: 'Work Completed',
-    message: 'Waiting for your verification. Please confirm the repair work.',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    issue: {
-      _id: 'i1',
-      complaintId: 'NGP-2026-0423',
-      title: 'Water pipeline burst on Central Avenue',
-      department: 'NMC Water Department',
-    },
-  },
-  {
-    _id: 'n2',
-    type: 'Engineer Assigned',
-    message: 'Road Department assigned an engineer for inspection.',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-    issue: {
-      _id: 'i2',
-      complaintId: 'NGP-2026-0417',
-      title: 'Large pothole near IT Park causing traffic delays',
-      department: 'NMC Road Department',
-    },
-  },
-  {
-    _id: 'n3',
-    type: 'Verification Requested',
-    message: 'Your confirmation is needed for the completed repair work.',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    issue: {
-      _id: 'i3',
-      complaintId: 'NGP-2026-0419',
-      title: 'Streetlight not working on Nagpur Road',
-      department: 'NMC Electrical Department',
-    },
-  },
-  {
-    _id: 'n4',
-    type: 'Issue Resolved',
-    message: 'The garbage dumping issue has been resolved successfully.',
-    isRead: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
-    issue: {
-      _id: 'i4',
-      complaintId: 'NGP-2026-0415',
-      title: 'Illegal garbage dumping near Lokmat Square',
-      department: 'NMC Sanitation Department',
-    },
-  },
-  {
-    _id: 'n5',
-    type: 'Work Started',
-    message: 'Repair work has commenced on the broken footpath.',
-    isRead: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    issue: {
-      _id: 'i5',
-      complaintId: 'NGP-2026-0412',
-      title: 'Broken footpath near Dharampeth Colony',
-      department: 'NMC Road Department',
-    },
-  },
-  {
-    _id: 'n6',
-    type: 'Issue Reopened',
-    message: 'The issue has been reopened due to incomplete resolution.',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
-    issue: {
-      _id: 'i6',
-      complaintId: 'NGP-2026-0409',
-      title: 'Sewage overflow in Ram Nagar area',
-      department: 'NMC Drainage Department',
-    },
-  },
-  {
-    _id: 'n7',
-    type: 'Inspection Scheduled',
-    message: 'Inspection scheduled for tomorrow at 10:00 AM.',
-    isRead: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 30).toISOString(),
-    issue: {
-      _id: 'i7',
-      complaintId: 'NGP-2026-0407',
-      title: 'Damaged road divider near Ambazari Lake',
-      department: 'NMC Road Department',
-    },
-  },
-  {
-    _id: 'n8',
-    type: 'Issue Submitted',
-    message: 'Your complaint has been registered successfully.',
-    isRead: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(),
-    issue: {
-      _id: 'i8',
-      complaintId: 'NGP-2026-0403',
-      title: 'Tree fallen on road after heavy rain',
-      department: 'NMC Garden Department',
-    },
-  },
-  {
-    _id: 'n9',
-    type: 'Status Changed',
-    message: 'Status updated from Pending to In Progress.',
-    isRead: false,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString(),
-    issue: {
-      _id: 'i9',
-      complaintId: 'NGP-2026-0401',
-      title: 'Encroachment near Sitabuldi Market',
-      department: 'NMC Enforcement Department',
-    },
-  },
-  {
-    _id: 'n10',
-    type: 'Work Completed',
-    message: 'Repair work has been marked as completed by the department.',
-    isRead: true,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 120).toISOString(),
-    issue: {
-      _id: 'i10',
-      complaintId: 'NGP-2026-0398',
-      title: 'Manhole cover missing near railway station',
-      department: 'NMC Drainage Department',
-    },
-  },
-]
+import api from '../lib/api'
 
 // ─── Helpers ────────────────────────────────────────────────────
 
@@ -242,7 +109,7 @@ export default function Notifications() {
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches)
 
-  const [notifications, setNotifications] = useState(mockNotifications)
+  const [notifications, setNotifications] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -261,17 +128,44 @@ export default function Notifications() {
     return () => media.removeEventListener('change', updateMode)
   }, [])
 
-  // ── Simulated load ─────────────────────────────────────────
-  useEffect(() => {
-    let mounted = true
-    const timer = setTimeout(() => {
-      if (mounted) setIsLoading(false)
-    }, 800)
-    return () => {
-      mounted = false
-      clearTimeout(timer)
+  // ── Real-time notifications fetch with live polling ────────
+  const fetchNotifications = useCallback(async (isBackground = false) => {
+    if (!isBackground) setIsLoading(true)
+    try {
+      const res = await api.get('/issues/notifications/me')
+      if (Array.isArray(res.data)) {
+        setNotifications(res.data)
+      } else {
+        setNotifications([])
+      }
+    } catch (err) {
+      console.warn('Could not load live notifications:', err.message)
+      setNotifications([])
+    } finally {
+      if (!isBackground) setIsLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    fetchNotifications()
+  }, [fetchNotifications])
+
+  // Polling every 12s & window focus refetch
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchNotifications(true)
+      }
+    }, 12000)
+
+    const onFocus = () => fetchNotifications(true)
+    window.addEventListener('focus', onFocus)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [fetchNotifications])
 
   const signOut = () => {
     clearAuth()
@@ -319,14 +213,24 @@ export default function Notifications() {
   }, [notifications])
 
   // ── Actions ────────────────────────────────────────────────
-  const handleMarkAllRead = useCallback(() => {
+  const handleMarkAllRead = useCallback(async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+    try {
+      await api.patch('/issues/notifications/read-all')
+    } catch (e) {
+      console.warn('Failed to sync mark all read:', e.message)
+    }
   }, [])
 
-  const handleRead = useCallback((id) => {
+  const handleRead = useCallback(async (id) => {
     setNotifications((prev) =>
       prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)),
     )
+    try {
+      await api.patch(`/issues/notifications/${id}/read`)
+    } catch (e) {
+      console.warn('Failed to sync mark read:', e.message)
+    }
   }, [])
 
   const handleSettings = useCallback(() => {

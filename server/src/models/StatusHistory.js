@@ -63,10 +63,12 @@ statusHistorySchema.pre('validate', function validateChangedBy(next) {
   const changedByCount = Number(Boolean(this.changedByUser)) + Number(Boolean(this.changedByAdmin));
 
   if (changedByCount !== 1) {
-    return next(new Error('Status change must be linked to exactly one actor (user or admin)'));
+    const err = new Error('Status change must be linked to exactly one actor (user or admin)');
+    if (typeof next === 'function') return next(err);
+    throw err;
   }
 
-  return next();
+  if (typeof next === 'function') return next();
 });
 
 module.exports = mongoose.model('StatusHistory', statusHistorySchema);

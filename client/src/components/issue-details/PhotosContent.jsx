@@ -14,6 +14,8 @@ const darkAttribution =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
 
 export default function MapContent({ lat = 21.1458, lng = 79.0882, address = 'Central Avenue, Dharampeth', area = 'Dharampeth', ward = 'Ward 12' }) {
+  const numericLat = !isNaN(Number(lat)) && Number(lat) !== 0 ? Number(lat) : 21.1458
+  const numericLng = !isNaN(Number(lng)) && Number(lng) !== 0 ? Number(lng) : 79.0882
   const mapRef = useRef(null)
   const mapInstance = useRef(null)
 
@@ -21,21 +23,21 @@ export default function MapContent({ lat = 21.1458, lng = 79.0882, address = 'Ce
     if (mapInstance.current || !mapRef.current) return
 
     const map = L.map(mapRef.current, {
-      center: [lat, lng],
+      center: [numericLat, numericLng],
       zoom: 15,
       zoomControl: false,
       attributionControl: false,
     })
 
     L.tileLayer(darkTileUrl, { attribution: darkAttribution }).addTo(map)
-    L.marker([lat, lng]).addTo(map)
+    L.marker([numericLat, numericLng]).addTo(map)
     mapInstance.current = map
 
     return () => {
       map.remove()
       mapInstance.current = null
     }
-  }, [lat, lng])
+  }, [numericLat, numericLng])
 
   return (
     <div className="space-y-3">
@@ -55,7 +57,7 @@ export default function MapContent({ lat = 21.1458, lng = 79.0882, address = 'Ce
         </div>
         <div className="rounded-lg border border-slate-700/30 bg-slate-800/50 p-2">
           <span className="text-slate-500">Coordinates</span>
-          <p className="font-mono font-medium text-slate-200">{lat.toFixed(4)}, {lng.toFixed(4)}</p>
+          <p className="font-mono font-medium text-slate-200">{numericLat.toFixed(4)}, {numericLng.toFixed(4)}</p>
         </div>
       </div>
     </div>

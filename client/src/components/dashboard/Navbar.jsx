@@ -1,15 +1,30 @@
 import { useNavigate } from 'react-router-dom'
-import { Bell, Menu, Search } from 'lucide-react'
+import { Bell, Menu, Search, ShieldCheck } from 'lucide-react'
+import { getAuth } from '../../lib/auth'
 
-export default function Navbar({ name, onMenu }) {
+export default function Navbar({ name, onMenu, onSearch, searchPlaceholder }) {
   const navigate = useNavigate()
-  const initials = name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()
+  const auth = getAuth()
+  const isAdmin = auth?.role === 'admin'
+  const department = auth?.account?.department || 'Municipal Administration'
+  const displayName = name || auth?.account?.name || (isAdmin ? 'Admin' : 'Citizen')
+  const initials = displayName.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()
+
+  const handleNotificationClick = () => {
+    navigate(isAdmin ? '/admin/notifications' : '/citizen/notifications')
+  }
+
+  const handleProfileClick = () => {
+    if (!isAdmin) {
+      navigate('/citizen/profile')
+    }
+  }
 
   return (
-    <header className="sticky top-0 z-50 flex items-center gap-3 border-b border-slate-700 bg-slate-950/95 px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-slate-700 bg-slate-950/95 px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
       <button
         onClick={onMenu}
-        className="grid h-10 w-10 place-items-center rounded-xl border border-slate-700 text-slate-300"
+        className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-700 text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
         aria-label="Toggle sidebar"
       >
         <Menu size={20} />
@@ -22,17 +37,18 @@ export default function Navbar({ name, onMenu }) {
             className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
           />
           <input
-            aria-label="Search your reports"
-            placeholder="Search reports, updates or areas"
-            className="w-full rounded-xl border border-slate-700 bg-slate-900 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-slate-500 outline-none"
+            onChange={(e) => onSearch?.(e.target.value)}
+            aria-label="Search"
+            placeholder={searchPlaceholder || (isAdmin ? "Search complaints by ID, title, or area..." : "Search reports, updates or areas...")}
+            className="w-full rounded-xl border border-slate-700 bg-slate-900 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-500"
           />
         </div>
       </div>
 
       <div className="ml-auto flex items-center gap-3">
         <button
-          onClick={() => navigate('/citizen/notifications')}
-          className="relative grid h-10 w-10 place-items-center rounded-xl border border-slate-700 text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
+          onClick={handleNotificationClick}
+          className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-700 text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
           aria-label="Notifications"
         >
           <Bell size={19} />
@@ -41,14 +57,21 @@ export default function Navbar({ name, onMenu }) {
 
         <div className="hidden text-right sm:block">
           <p className="text-sm font-semibold text-white">
-            Good Evening, {name.split(' ')[0]}.
+            {displayName}
           </p>
-          <p className="text-xs text-slate-400">Citizen account</p>
+          {isAdmin ? (
+            <p className="flex items-center justify-end gap-1 text-xs text-blue-400">
+              <ShieldCheck size={12} />
+              Admin: {department}
+            </p>
+          ) : (
+            <p className="text-xs text-slate-400">Citizen account</p>
+          )}
         </div>
 
         <button
-          onClick={() => navigate('/citizen/profile')}
-          className="grid h-10 w-10 place-items-center rounded-full bg-slate-700 text-sm font-semibold text-slate-100 transition-colors hover:bg-slate-600"
+          onClick={handleProfileClick}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-slate-700 text-sm font-semibold text-slate-100 transition-colors hover:bg-slate-600"
           aria-label="View profile"
         >
           {initials}
@@ -57,3 +80,4 @@ export default function Navbar({ name, onMenu }) {
     </header>
   )
 }
+

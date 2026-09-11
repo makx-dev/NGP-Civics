@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/dashboard/Sidebar'
@@ -14,153 +14,7 @@ import EmptyState from '../components/issues/EmptyState'
 import LoadingSkeleton from '../components/issues/LoadingSkeleton'
 import Pagination from '../components/issues/Pagination'
 import { clearAuth, getAuth } from '../lib/auth'
-import { getStoredIssues } from '../lib/issuesStore'
-
-// ──────────────────────────────────────────────
-// Sample data — replace with real API call later
-// ──────────────────────────────────────────────
-const sampleIssues = [
-  {
-    id: '1',
-    complaintId: 'NGP-2026-0421',
-    title: 'Deep pothole near Gandhi Square causing accidents',
-    category: 'Road',
-    department: 'NMC Road Department',
-    area: 'Gandhi Square',
-    priority: 'High',
-    status: 'In Progress',
-    reportedDate: '12 Jul 2026',
-    lastUpdated: '15 Jul 2026',
-    image: null,
-    currentStage: 'Repair work has started and is expected to complete in 3 days.',
-  },
-  {
-    id: '2',
-    complaintId: 'NGP-2026-0422',
-    title: 'Garbage not collected in Dhantoli Layout',
-    category: 'Garbage',
-    department: 'NMC Sanitation',
-    area: 'Dhantoli',
-    priority: 'Medium',
-    status: 'Assigned',
-    reportedDate: '10 Jul 2026',
-    lastUpdated: '14 Jul 2026',
-    image: null,
-    currentStage: 'Engineer has been assigned for site inspection.',
-  },
-  {
-    id: '3',
-    complaintId: 'NGP-2026-0423',
-    title: 'Water pipeline burst on Central Avenue',
-    category: 'Water',
-    department: 'NMC Water Supply',
-    area: 'Central Avenue',
-    priority: 'High',
-    status: 'Completed',
-    reportedDate: '05 Jul 2026',
-    lastUpdated: '13 Jul 2026',
-    image: null,
-    currentStage: 'Pipeline repair completed and water supply restored.',
-  },
-  {
-    id: '4',
-    complaintId: 'NGP-2026-0424',
-    title: 'Street light not working on Jhansi Rani Road',
-    category: 'Street Light',
-    department: 'NMC Electrical',
-    area: 'Jhansi Rani Road',
-    priority: 'Low',
-    status: 'Pending',
-    reportedDate: '14 Jul 2026',
-    lastUpdated: '14 Jul 2026',
-    image: null,
-    currentStage: 'Awaiting initial review by the electrical department.',
-  },
-  {
-    id: '5',
-    complaintId: 'NGP-2026-0425',
-    title: 'Traffic signal malfunction at Itwari Chowk',
-    category: 'Traffic',
-    department: 'NMC Traffic Control',
-    area: 'Itwari Chowk',
-    priority: 'High',
-    status: 'Inspection',
-    reportedDate: '09 Jul 2026',
-    lastUpdated: '12 Jul 2026',
-    image: null,
-    currentStage: 'Inspection scheduled for tomorrow morning.',
-  },
-  {
-    id: '6',
-    complaintId: 'NGP-2026-0426',
-    title: 'Illegal encroachment on footpath near Sitabuldi',
-    category: 'Encroachment',
-    department: 'NMC Enforcement',
-    area: 'Sitabuldi',
-    priority: 'Medium',
-    status: 'Citizen Verification',
-    reportedDate: '01 Jul 2026',
-    lastUpdated: '11 Jul 2026',
-    image: null,
-    currentStage: 'Waiting for citizen verification before proceeding.',
-  },
-  {
-    id: '7',
-    complaintId: 'NGP-2026-0427',
-    title: 'Manhole cover missing near Railway Station',
-    category: 'Road',
-    department: 'NMC Road Department',
-    area: 'Railway Station',
-    priority: 'High',
-    status: 'Resolved',
-    reportedDate: '20 Jun 2026',
-    lastUpdated: '10 Jul 2026',
-    image: null,
-    currentStage: 'Manhole cover replaced and area secured.',
-  },
-  {
-    id: '8',
-    complaintId: 'NGP-2026-0428',
-    title: 'Garbage dump attracting stray dogs',
-    category: 'Garbage',
-    department: 'NMC Sanitation',
-    area: 'Lakadganj',
-    priority: 'Medium',
-    status: 'Pending',
-    reportedDate: '15 Jul 2026',
-    lastUpdated: '15 Jul 2026',
-    image: null,
-    currentStage: 'Awaiting initial review by the sanitation department.',
-  },
-  {
-    id: '9',
-    complaintId: 'NGP-2026-0429',
-    title: 'Water contamination in Dharampeth area',
-    category: 'Water',
-    department: 'NMC Water Supply',
-    area: 'Dharampeth',
-    priority: 'High',
-    status: 'Reopened',
-    reportedDate: '28 Jun 2026',
-    lastUpdated: '14 Jul 2026',
-    image: null,
-    currentStage: 'Issue was reopened — re-inspection requested by citizen.',
-  },
-  {
-    id: '10',
-    complaintId: 'NGP-2026-0430',
-    title: 'Broken street light near Mayo Hospital',
-    category: 'Street Light',
-    department: 'NMC Electrical',
-    area: 'Mayo Hospital',
-    priority: 'Low',
-    status: 'Assigned',
-    reportedDate: '13 Jul 2026',
-    lastUpdated: '13 Jul 2026',
-    image: null,
-    currentStage: 'Engineer has been assigned for site inspection.',
-  },
-]
+import api from '../lib/api'
 
 const ITEMS_PER_PAGE = 6
 
@@ -173,7 +27,7 @@ export default function MyIssues() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches)
 
   // ── Data & loading ──
-  const [issues, setIssues] = useState(sampleIssues)
+  const [issues, setIssues] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
   // ── View mode ──
@@ -200,18 +54,44 @@ export default function MyIssues() {
   const name = getAuth()?.account?.name || 'Citizen'
   const sidebarOffset = isMobile ? 0 : sidebarExpanded ? 260 : 72
 
-  // ── Simulate loading + read stored issues ──
-  useEffect(() => {
-    const stored = getStoredIssues()
-    if (stored.length > 0) {
-      setIssues((prev) => {
-        const existingIds = new Set(prev.map((i) => i.id))
-        const newOnes = stored.filter((i) => !existingIds.has(i.id))
-        return [...newOnes, ...prev]
-      })
+  // ── Real-time backend fetching from MongoDB with cross-role polling ──
+  const fetchMyIssues = useCallback(async (isBackground = false) => {
+    if (!isBackground) setIsLoading(true)
+    try {
+      const res = await api.get('/issues/mine')
+      if (Array.isArray(res.data)) {
+        setIssues(res.data)
+      } else {
+        setIssues([])
+      }
+    } catch (err) {
+      console.warn('Could not fetch issues from MongoDB:', err.message)
+      setIssues([])
+    } finally {
+      if (!isBackground) setIsLoading(false)
     }
-    const timer = setTimeout(() => setIsLoading(false), 800)
-    return () => clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    fetchMyIssues()
+  }, [fetchMyIssues])
+
+  // Live polling (every 10s) and window focus refetch
+  // so any status update made in the Admin panel automatically updates the citizen's screen
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchMyIssues(true)
+      }
+    }, 10000)
+
+    const onFocus = () => fetchMyIssues(true)
+    window.addEventListener('focus', onFocus)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+    }
   }, [])
 
   // ── Responsive ──
@@ -265,13 +145,18 @@ export default function MyIssues() {
     // Search
     if (search.trim()) {
       const q = search.toLowerCase()
-      result = result.filter(
-        (i) =>
-          i.complaintId.toLowerCase().includes(q) ||
-          i.title.toLowerCase().includes(q) ||
-          i.area.toLowerCase().includes(q) ||
-          i.category.toLowerCase().includes(q)
-      )
+      result = result.filter((i) => {
+        const cId = i.complaintId || String(i._id || '')
+        const title = i.title || ''
+        const area = i.area || i.ward || i.location?.address || ''
+        const cat = typeof i.category === 'object' ? (i.category?.name || '') : (i.category || '')
+        return (
+          cId.toLowerCase().includes(q) ||
+          title.toLowerCase().includes(q) ||
+          area.toLowerCase().includes(q) ||
+          cat.toLowerCase().includes(q)
+        )
+      })
     }
 
     // Status filter
@@ -281,7 +166,10 @@ export default function MyIssues() {
 
     // Category filter
     if (filters.category !== 'All') {
-      result = result.filter((i) => i.category === filters.category)
+      result = result.filter((i) => {
+        const cat = typeof i.category === 'object' ? (i.category?.name || '') : (i.category || '')
+        return cat.toLowerCase() === filters.category.toLowerCase()
+      })
     }
 
     // Priority filter
@@ -291,15 +179,19 @@ export default function MyIssues() {
 
     // Sort
     const sortFn = {
-      newest: (a, b) => new Date(b.reportedDate) - new Date(a.reportedDate),
-      oldest: (a, b) => new Date(a.reportedDate) - new Date(b.reportedDate),
+      newest: (a, b) => new Date(b.createdAt || b.reportedDate || 0) - new Date(a.createdAt || a.reportedDate || 0),
+      oldest: (a, b) => new Date(a.createdAt || a.reportedDate || 0) - new Date(b.createdAt || b.reportedDate || 0),
       priority: (a, b) => {
         const rank = { High: 3, Medium: 2, Low: 1 }
-        return rank[b.priority] - rank[a.priority]
+        return (rank[b.priority] || 2) - (rank[a.priority] || 2)
       },
-      status: (a, b) => a.status.localeCompare(b.status),
-      area: (a, b) => a.area.localeCompare(b.area),
-      date: (a, b) => new Date(b.lastUpdated || b.reportedDate) - new Date(a.lastUpdated || a.reportedDate),
+      status: (a, b) => (a.status || '').localeCompare(b.status || ''),
+      area: (a, b) => {
+        const areaA = a.area || a.location?.address || ''
+        const areaB = b.area || b.location?.address || ''
+        return areaA.localeCompare(areaB)
+      },
+      date: (a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0),
     }
 
     const sorter = sortFn[filters.sort] || sortFn.newest
@@ -312,9 +204,8 @@ export default function MyIssues() {
   const tableIssues = useMemo(() => {
     const result = [...filteredIssues]
     result.sort((a, b) => {
-      const aVal = a[sortField]
-      const bVal = b[sortField]
-      if (!aVal || !bVal) return 0
+      const aVal = a[sortField] || a.createdAt || ''
+      const bVal = b[sortField] || b.createdAt || ''
       const cmp = String(aVal).localeCompare(String(bVal))
       return sortDir === 'asc' ? cmp : -cmp
     })
@@ -322,7 +213,7 @@ export default function MyIssues() {
   }, [filteredIssues, sortField, sortDir])
 
   // ── Pagination ──
-  const totalPages = Math.ceil(filteredIssues.length / ITEMS_PER_PAGE)
+  const totalPages = Math.max(1, Math.ceil(filteredIssues.length / ITEMS_PER_PAGE))
   const paginatedIssues = filteredIssues.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
@@ -330,9 +221,9 @@ export default function MyIssues() {
 
   // ── Stats ──
   const stats = useMemo(() => {
-    const pending = issues.filter((i) => i.status === 'Pending').length
+    const pending = issues.filter((i) => ['Pending', 'Complaint Submitted'].includes(i.status)).length
     const inProgress = issues.filter((i) =>
-      ['Assigned', 'Inspection', 'In Progress', 'Citizen Verification', 'Engineer Assigned'].includes(i.status)
+      ['Assigned to Department', 'Engineer Assigned', 'Inspection Scheduled', 'Work Started', 'Assigned', 'Inspection', 'In Progress', 'Citizen Verification Pending', 'Citizen Verification', 'Work Completed'].includes(i.status)
     ).length
     const resolved = issues.filter((i) =>
       ['Completed', 'Resolved'].includes(i.status)
@@ -419,7 +310,12 @@ export default function MyIssues() {
                       className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
                     >
                       {paginatedIssues.map((issue, idx) => (
-                        <IssueCard key={issue.id} issue={issue} index={idx} />
+                        <IssueCard
+                          key={issue._id || issue.id}
+                          issue={issue}
+                          index={idx}
+                          onSelect={(id) => navigate(`/issues/${id}`)}
+                        />
                       ))}
                     </motion.div>
                   )}
@@ -434,7 +330,12 @@ export default function MyIssues() {
                       className="space-y-3"
                     >
                       {paginatedIssues.map((issue, idx) => (
-                        <CompactIssueCard key={issue.id} issue={issue} index={idx} />
+                        <CompactIssueCard
+                          key={issue._id || issue.id}
+                          issue={issue}
+                          index={idx}
+                          onSelect={(id) => navigate(`/issues/${id}`)}
+                        />
                       ))}
                     </motion.div>
                   )}
@@ -452,6 +353,7 @@ export default function MyIssues() {
                         sortField={sortField}
                         sortDir={sortDir}
                         onSort={handleTableSort}
+                        onSelect={(id) => navigate(`/issues/${id}`)}
                       />
                     </motion.div>
                   )}

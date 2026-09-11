@@ -4,6 +4,9 @@ import CitizenDashboard from './pages/CitizenDashboard'
 import CitizenProfile from './pages/CitizenProfile'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
+import AdminIssues from './pages/AdminIssues'
+import AdminIssueDetails from './pages/AdminIssueDetails'
+import AdminNotifications from './pages/AdminNotifications'
 import MyIssues from './pages/MyIssues'
 import Notifications from './pages/Notifications'
 import IssueDetails from './pages/IssueDetails'
@@ -16,6 +19,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/auth" replace />} />
         <Route path="/auth" element={<Auth />} />
+
+        {/* Citizen Protected Routes */}
         <Route element={<ProtectedRoute role="user" />}>
           <Route path="/citizen/dashboard" element={<CitizenDashboard />} />
           <Route path="/citizen/issues" element={<MyIssues />} />
@@ -24,9 +29,15 @@ export default function App() {
           <Route path="/issues/:id" element={<IssueDetails />} />
           <Route path="/citizen/report" element={<ReportIssue />} />
         </Route>
+
+        {/* Admin Protected Routes */}
         <Route element={<ProtectedRoute role="admin" />}>
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/issues" element={<AdminIssues />} />
+          <Route path="/admin/issues/:id" element={<AdminIssueDetails />} />
+          <Route path="/admin/notifications" element={<AdminNotifications />} />
         </Route>
+
         <Route path="*" element={<Navigate to="/auth" replace />} />
       </Routes>
     </BrowserRouter>

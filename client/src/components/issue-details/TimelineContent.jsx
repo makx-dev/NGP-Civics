@@ -1,70 +1,61 @@
 import { motion } from 'framer-motion'
-import { Check, Circle, Loader2 } from 'lucide-react'
+import { Check, Circle, Clock, HardHat, Loader2, RotateCcw, ShieldCheck } from 'lucide-react'
 
-const timelineSteps = [
-  { key: 'submitted', label: 'Complaint Submitted', icon: Check },
-  { key: 'assigned', label: 'Assigned to Department', icon: Check },
-  { key: 'engineer', label: 'Engineer Assigned', icon: Check },
-  { key: 'inspection', label: 'Inspection Scheduled', icon: Check },
-  { key: 'work_started', label: 'Work Started', icon: Loader2 },
-  { key: 'repair_completed', label: 'Repair Completed', icon: Circle },
-  { key: 'citizen_verification', label: 'Waiting for Citizen Verification', icon: Circle },
-  { key: 'resolved', label: 'Resolved', icon: Circle },
+const statusPipeline = [
+  { key: 'Complaint Submitted', label: 'Complaint Submitted', icon: Check, desc: 'Registered on portal by resident.' },
+  { key: 'Assigned to Department', label: 'Assigned to Department', icon: Check, desc: 'Routed to responsible municipal department.' },
+  { key: 'Engineer Assigned', label: 'Engineer Assigned', icon: HardHat, desc: 'Field Engineer allocated for on-site work.' },
+  { key: 'Inspection Scheduled', label: 'Inspection Scheduled', icon: Clock, desc: 'Site assessment and work plan.' },
+  { key: 'Work Started', label: 'Work in Progress', icon: Loader2, desc: 'Ground repairs and material deployment.' },
+  { key: 'Work Completed', label: 'Work Completed', icon: Check, desc: 'Maintenance finished and photo evidence uploaded.' },
+  { key: 'Citizen Verification Pending', label: 'Citizen Verification', icon: ShieldCheck, desc: 'Resident review and confirmation.' },
+  { key: 'Resolved', label: 'Resolved & Closed', icon: Check, desc: 'Case successfully completed.' },
 ]
 
-const stepData = [
-  { key: 'submitted', timestamp: '12 Jul 2026, 09:15 AM', officer: 'You', dept: 'Citizen', remarks: 'Complaint submitted successfully.' },
-  { key: 'assigned', timestamp: '12 Jul 2026, 11:30 AM', officer: 'Rahul Sharma', dept: 'NMC Control Room', remarks: 'Assigned to Road Department.' },
-  { key: 'engineer', timestamp: '13 Jul 2026, 08:00 AM', officer: 'Amit Verma', dept: 'NMC Road Department', remarks: 'Engineer assigned for inspection.' },
-  { key: 'inspection', timestamp: '14 Jul 2026, 10:15 AM', officer: 'Amit Verma', dept: 'NMC Road Department', remarks: 'Inspection completed. Work order issued.' },
-  { key: 'work_started', timestamp: '15 Jul 2026, 07:30 AM', officer: 'Suresh Patil', dept: 'Contractor Team', remarks: 'Repair work has started.' },
-  { key: 'repair_completed', timestamp: '16 Jul 2026, 04:00 PM', officer: 'Suresh Patil', dept: 'Contractor Team', remarks: 'Repair completed 2 hours ago.' },
-  { key: 'citizen_verification', timestamp: null, officer: null, dept: null, remarks: 'Awaiting your confirmation.' },
-  { key: 'resolved', timestamp: null, officer: null, dept: null, remarks: null },
-]
-
-export default function TimelineContent({ currentStatus }) {
-  const statusOrder = ['Pending', 'Assigned', 'Engineer Assigned', 'Inspection', 'In Progress', 'Citizen Verification', 'Completed', 'Resolved', 'Rejected', 'Reopened']
-  const currentIndex = statusOrder.indexOf(currentStatus)
+export default function TimelineContent({ currentStatus, history = [] }) {
+  const currentIndex = statusPipeline.findIndex((s) => s.key === currentStatus)
+  const isReopened = currentStatus === 'REOPENED' || currentStatus === 'Reopened'
 
   return (
     <div className="space-y-0">
-      {timelineSteps.map((step, idx) => {
-        const stepKey = step.key
-        const data = stepData.find((d) => d.key === stepKey)
-        const stepStatusOrder = ['submitted', 'assigned', 'engineer', 'inspection', 'work_started', 'repair_completed', 'citizen_verification', 'resolved']
-        const stepIdx = stepStatusOrder.indexOf(stepKey)
-        const isCompleted = stepIdx < currentIndex
-        const isCurrent = stepIdx === currentIndex
-        const isUpcoming = stepIdx > currentIndex
+      {statusPipeline.map((step, idx) => {
+        const isCompleted = currentIndex > idx || currentStatus === 'Resolved'
+        const isCurrent = currentIndex === idx
+        const isUpcoming = currentIndex < idx && currentStatus !== 'Resolved'
 
-        const Icon = step.icon
+        // Match with history record if available
+        const histMatch = history.find((h) => h.toStatus === step.key)
 
         return (
           <motion.div
             key={step.key}
             initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: idx * 0.08 }}
+            transition={{ delay: idx * 0.05 }}
             className="relative flex gap-4 pb-6 last:pb-0"
           >
-            {/* Vertical line */}
-            {idx < timelineSteps.length - 1 && (
-              <div className={`absolute left-[11px] top-6 w-0.5 ${
-                isCompleted ? 'bg-green-500/60' : isCurrent ? 'bg-blue-500/40' : 'bg-slate-700'
-              }`}
+            {/* Vertical connector line */}
+            {idx < statusPipeline.length - 1 && (
+              <div
+                className={`absolute left-[11px] top-6 w-0.5 ${
+                  isCompleted ? 'bg-emerald-500/60' : isCurrent ? 'bg-blue-500/50' : 'bg-slate-800'
+                }`}
                 style={{ height: 'calc(100% - 24px)' }}
               />
             )}
 
-            {/* Icon */}
-            <div className={`relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
-              isCompleted ? 'border-green-500 bg-green-500/20' :
-              isCurrent ? 'border-blue-500 bg-blue-500/20' :
-              'border-slate-700 bg-slate-800'
-            }`}>
+            {/* Stage Icon */}
+            <div
+              className={`relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
+                isCompleted
+                  ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
+                  : isCurrent
+                  ? 'border-blue-500 bg-blue-500/20 text-blue-400 animate-pulse'
+                  : 'border-slate-700 bg-slate-800 text-slate-600'
+              }`}
+            >
               {isCompleted ? (
-                <Check size={12} className="text-green-400" />
+                <Check size={12} />
               ) : isCurrent ? (
                 <div className="h-2 w-2 rounded-full bg-blue-400" />
               ) : (
@@ -72,30 +63,47 @@ export default function TimelineContent({ currentStatus }) {
               )}
             </div>
 
-            {/* Content */}
+            {/* Content description */}
             <div className="min-w-0 flex-1">
-              <p className={`text-sm font-medium ${
-                isCompleted ? 'text-green-300' :
-                isCurrent ? 'text-blue-300' :
-                'text-slate-500'
-              }`}>
-                {step.label}
-              </p>
-              {data?.timestamp && (
-                <p className="mt-0.5 text-xs text-slate-500">{data.timestamp}</p>
-              )}
-              {data?.officer && data?.dept && (
-                <p className="text-xs text-slate-500">
-                  {data.officer} &middot; {data.dept}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p
+                  className={`text-xs font-semibold ${
+                    isCompleted
+                      ? 'text-emerald-300'
+                      : isCurrent
+                      ? 'text-blue-300'
+                      : 'text-slate-500'
+                  }`}
+                >
+                  {step.label}
                 </p>
-              )}
-              {data?.remarks && (
-                <p className="mt-1 text-xs text-slate-400">{data.remarks}</p>
+                {histMatch?.changedAt && (
+                  <span className="text-[10px] text-slate-500">
+                    {new Date(histMatch.changedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+              </div>
+
+              <p className="mt-0.5 text-xs text-slate-400">{histMatch?.remark || step.desc}</p>
+              {histMatch?.changedByAdmin?.name && (
+                <p className="mt-0.5 text-[11px] text-blue-400">
+                  Officer: {histMatch.changedByAdmin.name} ({histMatch.changedByAdmin.department || 'Authority'})
+                </p>
               )}
             </div>
           </motion.div>
         )
       })}
+
+      {isReopened && (
+        <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
+          <RotateCcw size={15} className="mt-0.5 shrink-0 text-rose-400" />
+          <div>
+            <span className="font-semibold">Issue Reopened by Citizen</span>
+            <p className="text-slate-300">Ground repairs have been restarted for priority completion.</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

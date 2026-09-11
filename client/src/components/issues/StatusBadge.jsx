@@ -2,14 +2,22 @@ import { motion } from 'framer-motion'
 
 const statusConfig = {
   Pending: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', dot: 'bg-yellow-400' },
+  'Complaint Submitted': { bg: 'bg-yellow-500/10', text: 'text-yellow-400', dot: 'bg-yellow-400' },
   Assigned: { bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-400' },
+  'Assigned to Department': { bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-400' },
+  'Engineer Assigned': { bg: 'bg-sky-500/10', text: 'text-sky-400', dot: 'bg-sky-400' },
   Inspection: { bg: 'bg-purple-500/10', text: 'text-purple-400', dot: 'bg-purple-400' },
+  'Inspection Scheduled': { bg: 'bg-purple-500/10', text: 'text-purple-400', dot: 'bg-purple-400' },
   'In Progress': { bg: 'bg-indigo-500/10', text: 'text-indigo-400', dot: 'bg-indigo-400' },
+  'Work Started': { bg: 'bg-indigo-500/10', text: 'text-indigo-400', dot: 'bg-indigo-400' },
+  'Work Completed': { bg: 'bg-teal-500/10', text: 'text-teal-400', dot: 'bg-teal-400' },
   Completed: { bg: 'bg-green-500/10', text: 'text-green-400', dot: 'bg-green-400' },
+  'Citizen Verification Pending': { bg: 'bg-cyan-500/10', text: 'text-cyan-400', dot: 'bg-cyan-400' },
   'Citizen Verification': { bg: 'bg-cyan-500/10', text: 'text-cyan-400', dot: 'bg-cyan-400' },
   Resolved: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', dot: 'bg-emerald-400' },
   Rejected: { bg: 'bg-red-500/10', text: 'text-red-400', dot: 'bg-red-400' },
   Reopened: { bg: 'bg-orange-500/10', text: 'text-orange-400', dot: 'bg-orange-400' },
+  REOPENED: { bg: 'bg-orange-500/10', text: 'text-orange-400', dot: 'bg-orange-400' },
 }
 
 export default function StatusBadge({ status, size = 'sm' }) {

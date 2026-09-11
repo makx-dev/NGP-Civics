@@ -35,6 +35,13 @@ const issueTimeline = [
 
 const issueSchema = new mongoose.Schema(
   {
+    complaintId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      index: true,
+    },
     title: {
       type: String,
       required: true,
@@ -94,11 +101,50 @@ const issueSchema = new mongoose.Schema(
       default: 'Complaint Submitted',
       index: true,
     },
+    progress: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0,
+    },
     priority: {
       type: String,
       enum: ['Low', 'Medium', 'High'],
       default: 'Medium',
       index: true,
+    },
+    department: {
+      type: String,
+      trim: true,
+      maxlength: 150,
+      default: 'NMC Civic Administration',
+    },
+    assignedOfficer: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+    },
+    assignedOfficerRole: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+    },
+    assignedOfficerPhone: {
+      type: String,
+      trim: true,
+      maxlength: 30,
+    },
+    ward: {
+      type: String,
+      trim: true,
+      maxlength: 80,
+      default: 'Ward 12 (Dharampeth / Central Nagpur)',
+    },
+    scheduledInspectionDate: {
+      type: Date,
+    },
+    estimatedResolutionDate: {
+      type: Date,
     },
     adminRemarks: {
       type: String,
@@ -113,23 +159,47 @@ const issueSchema = new mongoose.Schema(
     completionPhotoUploadedAt: {
       type: Date,
     },
+    citizenFeedback: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+    },
+    citizenRating: {
+      type: Number,
+      min: 1,
+      max: 5,
+    },
   },
   { timestamps: true }
 );
 
 issueSchema.pre('validate', function validateLocation(next) {
   if (!this.location) {
-    return next(new Error('Location is required')); 
+    const err = new Error('Location is required');
+    if (typeof next === 'function') return next(err);
+    throw err;
   }
 
   const hasGps = typeof this.location.lat === 'number' && typeof this.location.lng === 'number';
   const hasAddress = Boolean(this.location.address && this.location.address.trim());
 
   if (!hasGps && !hasAddress) {
-    return next(new Error('Provide GPS coordinates or a manual address'));
+    const err = new Error('Provide GPS coordinates or a manual address');
+    if (typeof next === 'function') return next(err);
+    throw err;
   }
 
-  return next();
+  if (typeof next === 'function') return next();
+});
+
+issueSchema.pre('save', async function generateComplaintId(next) {
+  if (!this.complaintId) {
+    const year = new Date().getFullYear();
+    const count = await mongoose.model('Issue').countDocuments();
+    const suffix = String(count + 1001).padStart(4, '0');
+    this.complaintId = `NGP-${year}-${suffix}`;
+  }
+  if (typeof next === 'function') next();
 });
 
 module.exports = mongoose.model('Issue', issueSchema);

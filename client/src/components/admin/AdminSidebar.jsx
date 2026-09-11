@@ -19,12 +19,8 @@ const transition = { duration: 0.25, ease: 'easeInOut' }
 
 const navItems = [
   { label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
-  { label: 'Issue Management', path: '/admin/issues', icon: ClipboardList },
-  { label: 'Departments', path: '/admin/departments', icon: Building2 },
-  { label: 'Citizens', path: '/admin/citizens', icon: UsersRound },
+  { label: 'All Issues', path: '/admin/issues', icon: ClipboardList },
   { label: 'Notifications', path: '/admin/notifications', icon: Bell },
-  { label: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
-  { label: 'Settings', path: '/admin/settings', icon: LayoutDashboard },
 ]
 
 export default function AdminSidebar({ mobileOpen, expanded, isMobile, onClose, onLogout, name, roleLabel }) {

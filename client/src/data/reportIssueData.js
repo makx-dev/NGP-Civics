@@ -36,11 +36,3 @@ export const steps = [
   { id: 3, label: 'Photos', description: 'Upload issue images' },
   { id: 4, label: 'Review', description: 'Confirm and submit' },
 ]
-
-export const mockSubmitResponse = {
-  success: true,
-  complaintId: 'NGP-2026-001245',
-  status: 'Submitted',
-  message: 'Your report has been submitted successfully.',
-  timestamp: new Date().toISOString(),
-}

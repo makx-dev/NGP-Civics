@@ -1,15 +1,23 @@
 export default function ComplaintInfoContent({ issue }) {
+  const categoryName = typeof issue.category === 'object' ? issue.category?.name : (issue.category || 'General')
+  const departmentName = issue.department || (typeof issue.assignedAdmin === 'object' ? issue.assignedAdmin?.department : null) || 'Civic Services'
+  const reporterName = typeof issue.reporter === 'object' ? (issue.reporter?.name || issue.reporter?.email || 'Citizen') : (issue.reporter || 'Citizen')
+  const issueId = issue.id || issue._id
+  const complaintId = issue.complaintId || (issueId ? String(issueId).slice(-6).toUpperCase() : 'CIVIC-REQ')
+  const areaName = issue.area || issue.ward || issue.location?.address || 'Nagpur'
+  const dateText = issue.reportedDate || (issue.createdAt ? new Date(issue.createdAt).toLocaleDateString() : 'Recent')
+
   const fields = [
-    { label: 'Category', value: issue.category },
-    { label: 'Priority', value: issue.priority },
-    { label: 'Complaint ID', value: `#${issue.complaintId}` },
-    { label: 'Department', value: issue.department },
-    { label: 'Reporter', value: issue.reporter || 'Citizen' },
-    { label: 'Reported Date', value: issue.reportedDate },
-    { label: 'Area', value: issue.area },
+    { label: 'Category', value: categoryName },
+    { label: 'Priority', value: issue.priority || 'Medium' },
+    { label: 'Complaint ID', value: `#${complaintId}` },
+    { label: 'Department', value: departmentName },
+    { label: 'Reporter', value: reporterName },
+    { label: 'Reported Date', value: dateText },
+    { label: 'Area', value: areaName },
     { label: 'Ward', value: issue.ward || 'Ward 12' },
-    { label: 'Latitude', value: issue.lat || '21.1458' },
-    { label: 'Longitude', value: issue.lng || '79.0882' },
+    { label: 'Latitude', value: issue.lat || issue.location?.coordinates?.lat || '21.1458' },
+    { label: 'Longitude', value: issue.lng || issue.location?.coordinates?.lng || '79.0882' },
   ]
 
   return (

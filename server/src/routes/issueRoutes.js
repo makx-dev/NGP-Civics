@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Issue = require('../models/Issue');
 const Category = require('../models/Category');
 const StatusHistory = require('../models/StatusHistory');
+const Notification = require('../models/Notification');
 const { protect } = require('../middleware/auth');
 const { createNotification } = require('../utils/notification');
 
@@ -181,6 +182,47 @@ router.get('/summary', protect('admin'), async (_req, res) => {
   }
 });
 
+router.get('/notifications/me', protect('user'), async (req, res) => {
+  try {
+    const notifications = await Notification.find({ recipient: req.auth.id })
+      .sort({ createdAt: -1 })
+      .populate('issue', 'title complaintId department')
+      .limit(100);
+
+    return res.json(notifications);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.patch('/notifications/read-all', protect('user'), async (req, res) => {
+  try {
+    await Notification.updateMany(
+      { recipient: req.auth.id, isRead: false },
+      { $set: { isRead: true } }
+    );
+    return res.json({ message: 'All notifications marked as read' });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+});
+
+router.patch('/notifications/:id/read', protect('user'), async (req, res) => {
+  try {
+    const notification = await Notification.findOneAndUpdate(
+      { _id: req.params.id, recipient: req.auth.id },
+      { isRead: true },
+      { new: true }
+    );
+    if (!notification) {
+      return res.status(404).json({ message: 'Notification not found' });
+    }
+    return res.json(notification);
+  } catch (error) {
+    return res.status(400).json({ message: error.message });
+  }
+});
+
 router.post('/', protect('user'), async (req, res) => {
   try {
     const { title, description, category, location, photos = [], priority } = req.body;
@@ -194,13 +236,20 @@ router.post('/', protect('user'), async (req, res) => {
       return res.status(400).json({ message: 'Category does not exist or is inactive' });
     }
 
+    const loc = location || {
+      address: req.body.address || req.body.area || 'Nagpur',
+      lat: typeof req.body.lat === 'number' ? req.body.lat : undefined,
+      lng: typeof req.body.lng === 'number' ? req.body.lng : undefined,
+    };
+
     const issue = await Issue.create({
       title,
       description,
       category,
-      location,
+      location: loc,
+      ward: req.body.ward || 'Ward 12 (Dharampeth / Central Nagpur)',
       photos,
-      priority,
+      priority: priority || 'Medium',
       reporter: req.auth.id,
       status: 'Complaint Submitted',
     });
@@ -246,15 +295,11 @@ router.get('/:id', protect(), async (req, res) => {
   try {
     const issue = await Issue.findById(req.params.id)
       .populate('category', 'name')
-      .populate('reporter', 'name email')
+      .populate('reporter', 'name email phone address avatar createdAt')
       .populate('assignedAdmin', 'name email department');
 
     if (!issue) {
       return res.status(404).json({ message: 'Issue not found' });
-    }
-
-    if (req.auth.role === 'user' && String(issue.reporter._id) !== req.auth.id) {
-      return res.status(403).json({ message: 'Not allowed to access this issue' });
     }
 
     return res.json(issue);
@@ -274,10 +319,6 @@ router.get('/:id/photo-comparison', protect(), async (req, res) => {
       return res.status(404).json({ message: 'Issue not found' });
     }
 
-    if (req.auth.role === 'user' && String(issue.reporter) !== req.auth.id) {
-      return res.status(403).json({ message: 'Not allowed to view this issue comparison' });
-    }
-
     return res.json({
       before: issue.photos,
       after: issue.completionPhoto
@@ -295,20 +336,21 @@ router.get('/:id/photo-comparison', protect(), async (req, res) => {
 // The citizen is the only actor who can close an issue after work is completed.
 router.post('/:id/verification', protect('user'), async (req, res) => {
   try {
-    const { decision, remark } = req.body;
+    const { decision, remark, feedback, rating } = req.body;
 
     if (!['Fixed', 'Not Fixed'].includes(decision)) {
       return res.status(400).json({ message: 'Decision must be either "Fixed" or "Not Fixed"' });
     }
 
-    if (typeof remark !== 'undefined' && (typeof remark !== 'string' || remark.length > 500)) {
-      return res.status(400).json({ message: 'Verification remark must be 500 characters or fewer' });
+    const comment = feedback || remark;
+    if (typeof comment !== 'undefined' && (typeof comment !== 'string' || comment.length > 500)) {
+      return res.status(400).json({ message: 'Verification feedback must be 500 characters or fewer' });
     }
 
     const issue = await Issue.findOne({
       _id: req.params.id,
       reporter: req.auth.id,
-      status: 'Citizen Verification Pending',
+      status: { $in: ['Citizen Verification Pending', 'Citizen Verification', 'Work Completed'] },
     });
 
     if (!issue) {
@@ -319,6 +361,15 @@ router.post('/:id/verification', protect('user'), async (req, res) => {
 
     const previousStatus = issue.status;
     issue.status = decision === 'Fixed' ? 'Resolved' : 'REOPENED';
+    issue.progress = decision === 'Fixed' ? 100 : 30;
+
+    if (rating && Number.isFinite(Number(rating))) {
+      issue.citizenRating = Math.min(5, Math.max(1, Number(rating)));
+    }
+    if (comment) {
+      issue.citizenFeedback = comment.trim();
+    }
+
     await issue.save();
 
     await StatusHistory.create({
@@ -326,7 +377,11 @@ router.post('/:id/verification', protect('user'), async (req, res) => {
       fromStatus: previousStatus,
       toStatus: issue.status,
       changedByUser: req.auth.id,
-      remark: remark?.trim() || `Citizen marked the issue as ${decision}.`,
+      remark:
+        comment?.trim() ||
+        (decision === 'Fixed'
+          ? `Citizen confirmed resolution${rating ? ` (Rated ${rating}/5 ★)` : ''}.`
+          : 'Citizen reported issue is not resolved. Reopened for municipal attention.'),
     });
 
     await createNotification({
@@ -335,8 +390,8 @@ router.post('/:id/verification', protect('user'), async (req, res) => {
       type: issue.status === 'Resolved' ? 'Issue Resolved' : 'Issue Reopened',
       message:
         issue.status === 'Resolved'
-          ? `You confirmed that "${issue.title}" is fixed.`
-          : `You reported that "${issue.title}" is not fixed. The issue has been reopened.`,
+          ? `You confirmed that "${issue.title}" is fixed. Thank you for making Nagpur cleaner and safer!`
+          : `You reported that "${issue.title}" is not fixed. The issue has been reopened for priority action.`,
     });
 
     const updatedIssue = await Issue.findById(issue._id)
@@ -358,7 +413,7 @@ router.patch('/:id', protect('user'), async (req, res) => {
     );
 
     const issue = await Issue.findOneAndUpdate(
-      { _id: req.params.id, reporter: req.auth.id, status: 'Pending' },
+      { _id: req.params.id, reporter: req.auth.id, status: 'Complaint Submitted' },
       updates,
       { new: true, runValidators: true }
     ).populate('category', 'name');
@@ -378,7 +433,7 @@ router.delete('/:id', protect('user'), async (req, res) => {
     const result = await Issue.deleteOne({
       _id: req.params.id,
       reporter: req.auth.id,
-      status: 'Pending',
+      status: { $in: ['Complaint Submitted', 'Pending'] },
     });
 
     if (!result.deletedCount) {
@@ -397,10 +452,6 @@ router.get('/:id/history', protect(), async (req, res) => {
 
     if (!issue) {
       return res.status(404).json({ message: 'Issue not found' });
-    }
-
-    if (req.auth.role === 'user' && String(issue.reporter) !== req.auth.id) {
-      return res.status(403).json({ message: 'Not allowed to view history' });
     }
 
     const history = await StatusHistory.find({ issue: req.params.id })
