@@ -4,7 +4,33 @@ const USER_KEY = 'ngp_civics_auth'
 const storageFor = () => localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage
 
 export const getToken = () => storageFor().getItem(TOKEN_KEY)
+
+export const isTokenExpired = (token) => {
+  const t = token || getToken()
+  if (!t) return true
+  try {
+    const base64Url = t.split('.')[1]
+    if (!base64Url) return true
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    const decoded = JSON.parse(jsonPayload)
+    if (!decoded.exp) return false
+    return decoded.exp * 1000 <= Date.now() + 5000 // Expired or expiring within 5s
+  } catch {
+    return true
+  }
+}
+
 export const getAuth = () => {
+  if (isTokenExpired()) {
+    clearAuth()
+    return null
+  }
   const raw = storageFor().getItem(USER_KEY)
   return raw ? JSON.parse(raw) : null
 }

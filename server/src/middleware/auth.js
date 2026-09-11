@@ -9,8 +9,12 @@ const protect = (requiredRole = null) => (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
 
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    return res.status(500).json({ message: 'Authentication misconfigured: JWT_SECRET missing' });
+  }
+
   try {
-    const secret = process.env.JWT_SECRET || 'ngp-civics-jwt-secret-fallback-key-2026';
     const decoded = jwt.verify(token, secret);
 
     if (requiredRole && decoded.role !== requiredRole) {

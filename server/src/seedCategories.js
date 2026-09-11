@@ -15,6 +15,7 @@ const defaultCategories = [
   'Public Property Damage',
   'Encroachment',
   'Animal Welfare',
+  'Illegal Parking',
   'Others',
 ];
 

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Counter = require('./Counter');
 
 const issuePhotoSchema = new mongoose.Schema(
   {
@@ -192,11 +193,58 @@ issueSchema.pre('validate', function validateLocation(next) {
   if (typeof next === 'function') return next();
 });
 
+issueSchema.pre('findOneAndUpdate', function validateLocationOnUpdate(next) {
+  const update = this.getUpdate();
+  const loc = update?.location || update?.$set?.location;
+  if (loc) {
+    const hasGps = typeof loc.lat === 'number' && typeof loc.lng === 'number';
+    const hasAddress = Boolean(loc.address && String(loc.address).trim());
+    if (!hasGps && !hasAddress) {
+      const err = new Error('Provide GPS coordinates or a manual address');
+      if (typeof next === 'function') return next(err);
+      throw err;
+    }
+  }
+  if (typeof next === 'function') return next();
+});
+
 issueSchema.pre('save', async function generateComplaintId(next) {
   if (!this.complaintId) {
     const year = new Date().getFullYear();
-    const count = await mongoose.model('Issue').countDocuments();
-    const suffix = String(count + 1001).padStart(4, '0');
+    const counterId = `complaintId_${year}`;
+
+    // Atomically increment the counter for this year
+    let counter = await Counter.findById(counterId);
+    if (!counter) {
+      // Find highest existing complaintId sequence for this year to seed counter accurately
+      const latestIssue = await mongoose
+        .model('Issue')
+        .findOne({ complaintId: new RegExp(`^NGP-${year}-`) })
+        .sort({ complaintId: -1 });
+
+      let initialSeq = 1000;
+      if (latestIssue?.complaintId) {
+        const parts = latestIssue.complaintId.split('-');
+        const parsed = parseInt(parts[2], 10);
+        if (Number.isFinite(parsed) && parsed >= 1000) {
+          initialSeq = parsed;
+        }
+      }
+
+      await Counter.updateOne(
+        { _id: counterId },
+        { $setOnInsert: { seq: initialSeq } },
+        { upsert: true }
+      );
+    }
+
+    const updatedCounter = await Counter.findByIdAndUpdate(
+      counterId,
+      { $inc: { seq: 1 } },
+      { returnDocument: 'after', upsert: true }
+    );
+
+    const suffix = String(updatedCounter.seq).padStart(4, '0');
     this.complaintId = `NGP-${year}-${suffix}`;
   }
   if (typeof next === 'function') next();

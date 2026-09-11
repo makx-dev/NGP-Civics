@@ -5,6 +5,7 @@ const Category = require('../models/Category');
 const StatusHistory = require('../models/StatusHistory');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const Admin = require('../models/Admin');
 const { protect } = require('../middleware/auth');
 const { createNotification } = require('../utils/notification');
 
@@ -167,62 +168,108 @@ router.patch('/issues/:id', async (req, res) => {
     }
 
     const previousStatus = issue.status;
+    const changes = [];
 
     if (category) {
       if (!mongoose.Types.ObjectId.isValid(category)) {
         return res.status(400).json({ message: 'Invalid category ID' });
       }
 
-      const categoryExists = await Category.exists({ _id: category, isActive: true });
-      if (!categoryExists) {
+      const categoryDoc = await Category.findOne({ _id: category, isActive: true });
+      if (!categoryDoc) {
         return res.status(400).json({ message: 'Category does not exist or is inactive' });
       }
 
-      issue.category = category;
+      if (String(issue.category) !== String(category)) {
+        changes.push(`Category changed to "${categoryDoc.name}"`);
+        issue.category = category;
+      }
     }
 
-    if (assignedAdmin && mongoose.Types.ObjectId.isValid(assignedAdmin)) {
-      issue.assignedAdmin = assignedAdmin;
+    if (assignedAdmin) {
+      if (!mongoose.Types.ObjectId.isValid(assignedAdmin)) {
+        return res.status(400).json({ message: 'Invalid assigned administrator ID' });
+      }
+
+      const adminDoc = await Admin.findById(assignedAdmin).select('name department');
+      if (!adminDoc) {
+        return res.status(400).json({ message: 'Assigned administrator does not exist' });
+      }
+
+      if (String(issue.assignedAdmin) !== String(assignedAdmin)) {
+        changes.push(`Assigned administrator updated to ${adminDoc.name} (${adminDoc.department || 'Authority'})`);
+        issue.assignedAdmin = assignedAdmin;
+      }
     }
 
     if (priority && ['Low', 'Medium', 'High'].includes(priority)) {
-      issue.priority = priority;
+      if (issue.priority !== priority) {
+        changes.push(`Priority changed to ${priority}`);
+        issue.priority = priority;
+      }
     }
 
     if (department && typeof department === 'string') {
-      issue.department = department.trim();
+      const trimmedDept = department.trim();
+      if (issue.department !== trimmedDept) {
+        changes.push(`Department assigned to "${trimmedDept}"`);
+        issue.department = trimmedDept;
+      }
     }
 
     if (typeof assignedOfficer === 'string') {
-      issue.assignedOfficer = assignedOfficer.trim();
+      const trimmedOfficer = assignedOfficer.trim();
+      if (issue.assignedOfficer !== trimmedOfficer) {
+        changes.push(`Officer assigned: ${trimmedOfficer}`);
+        issue.assignedOfficer = trimmedOfficer;
+      }
     }
 
     if (typeof assignedOfficerPhone === 'string') {
-      issue.assignedOfficerPhone = assignedOfficerPhone.trim();
+      const trimmedPhone = assignedOfficerPhone.trim();
+      if (issue.assignedOfficerPhone !== trimmedPhone) {
+        changes.push(`Officer phone updated to ${trimmedPhone}`);
+        issue.assignedOfficerPhone = trimmedPhone;
+      }
     }
 
     if (typeof assignedOfficerRole === 'string') {
-      issue.assignedOfficerRole = assignedOfficerRole.trim();
+      const trimmedRole = assignedOfficerRole.trim();
+      if (issue.assignedOfficerRole !== trimmedRole) {
+        changes.push(`Officer role set to ${trimmedRole}`);
+        issue.assignedOfficerRole = trimmedRole;
+      }
     }
 
     if (typeof ward === 'string') {
-      issue.ward = ward.trim();
+      const trimmedWard = ward.trim();
+      if (issue.ward !== trimmedWard) {
+        changes.push(`Ward updated to "${trimmedWard}"`);
+        issue.ward = trimmedWard;
+      }
     }
 
     if (scheduledInspectionDate) {
       issue.scheduledInspectionDate = new Date(scheduledInspectionDate);
+      changes.push(`Inspection scheduled for ${issue.scheduledInspectionDate.toISOString().split('T')[0]}`);
     }
 
     if (estimatedResolutionDate) {
       issue.estimatedResolutionDate = new Date(estimatedResolutionDate);
+      changes.push(`Target resolution date set to ${issue.estimatedResolutionDate.toISOString().split('T')[0]}`);
     }
 
     if (typeof progress !== 'undefined' && Number.isFinite(Number(progress))) {
-      issue.progress = Math.min(100, Math.max(0, Number(progress)));
+      const newProgress = Math.min(100, Math.max(0, Number(progress)));
+      if (issue.progress !== newProgress) {
+        changes.push(`Progress updated to ${newProgress}%`);
+        issue.progress = newProgress;
+      }
     }
 
-    if (typeof adminRemarks === 'string') {
-      issue.adminRemarks = adminRemarks;
+    if (typeof adminRemarks === 'string' && adminRemarks.trim()) {
+      issue.adminRemarks = adminRemarks.trim();
+      changes.push(`Remarks: "${adminRemarks.trim()}"`);
     }
 
     if (typeof completionPhoto !== 'undefined') {
@@ -232,6 +279,7 @@ router.patch('/issues/:id', async (req, res) => {
 
       issue.completionPhoto = completionPhoto.trim();
       issue.completionPhotoUploadedAt = new Date();
+      changes.push('Completion verification photo uploaded');
     }
 
     if (status) {
@@ -245,11 +293,14 @@ router.patch('/issues/:id', async (req, res) => {
         });
       }
 
-      issue.status = status;
+      if (issue.status !== status) {
+        changes.push(`Status advanced to "${status}"`);
+        issue.status = status;
 
-      // If progress wasn't explicitly provided, advance progress automatically based on default mapping
-      if (typeof progress === 'undefined') {
-        issue.progress = statusDefaultProgress[status] || issue.progress;
+        // If progress wasn't explicitly provided, advance progress automatically based on default mapping
+        if (typeof progress === 'undefined') {
+          issue.progress = statusDefaultProgress[status] || issue.progress;
+        }
       }
     }
 
@@ -261,34 +312,42 @@ router.patch('/issues/:id', async (req, res) => {
 
     await issue.save();
 
-    if (previousStatus !== issue.status || adminRemarks || assignedOfficer || typeof progress !== 'undefined') {
+    // If any administrative changes occurred, create a StatusHistory entry and notify citizen
+    if (changes.length > 0) {
+      const historyRemark = issue.adminRemarks || changes.join(' • ');
+
       await StatusHistory.create({
         issue: issue._id,
         fromStatus: previousStatus,
         toStatus: issue.status,
         changedByAdmin: req.auth.id,
-        remark:
-          issue.adminRemarks ||
-          (assignedOfficer
-            ? `Assigned to ${assignedOfficer} (${issue.assignedOfficerRole || 'Field Engineer'}) • Progress: ${issue.progress}%`
-            : `Status advanced to ${issue.status} (Progress: ${issue.progress}%)`),
+        remark: historyRemark.slice(0, 500),
       });
 
-      const notification = getStatusNotification(issue);
+      if (previousStatus !== issue.status) {
+        const notification = getStatusNotification(issue);
+        let customMsg = notification.message;
+        if (assignedOfficer && issue.status === 'Engineer Assigned') {
+          customMsg = `Field Engineer ${assignedOfficer} (${issue.assignedOfficerRole || 'Lead Engineer'}) has been assigned to your issue "${issue.title}". Contact: ${issue.assignedOfficerPhone || 'Via Portal'}`;
+        } else if (issue.progress) {
+          customMsg += ` Resolution progress: ${issue.progress}%.`;
+        }
 
-      let customMsg = notification.message;
-      if (assignedOfficer && issue.status === 'Engineer Assigned') {
-        customMsg = `Field Engineer ${assignedOfficer} (${issue.assignedOfficerRole || 'Lead Engineer'}) has been assigned to your issue "${issue.title}". Contact: ${issue.assignedOfficerPhone || 'Via Portal'}`;
-      } else if (issue.progress) {
-        customMsg += ` Resolution progress: ${issue.progress}%.`;
+        await createNotification({
+          recipient: issue.reporter,
+          issue: issue._id,
+          type: notification.type,
+          message: customMsg,
+        });
+      } else {
+        // Administrative details updated without a status transition
+        await createNotification({
+          recipient: issue.reporter,
+          issue: issue._id,
+          type: 'Issue Updated',
+          message: `Updates on your issue "${issue.title}": ${changes.join(', ')}.`.slice(0, 300),
+        });
       }
-
-      await createNotification({
-        recipient: issue.reporter,
-        issue: issue._id,
-        type: notification.type,
-        message: customMsg,
-      });
     }
 
     const updatedIssue = await Issue.findById(issue._id)
@@ -387,7 +446,7 @@ router.get('/citizens/:id', async (req, res) => {
     const [totalIssues, resolvedIssues, activeIssues, recentIssues] = await Promise.all([
       Issue.countDocuments({ reporter: user._id }),
       Issue.countDocuments({ reporter: user._id, status: 'Resolved' }),
-      Issue.countDocuments({ reporter: user._id, status: { $nin: ['Resolved', 'Completed'] } }),
+      Issue.countDocuments({ reporter: user._id, status: { $ne: 'Resolved' } }),
       Issue.find({ reporter: user._id })
         .sort({ createdAt: -1 })
         .limit(10)

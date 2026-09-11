@@ -31,14 +31,19 @@ Separate collection for admin accounts.
 ### 3) Categories (`Category`)
 Issue categories, managed as reusable records.
 - `name` (unique), `description`, `isActive`
-- Seed script includes:
+- Seed script includes 13 civic categories:
   - Road Damage (Potholes)
   - Streetlights
   - Garbage
   - Water Leakage
+  - Public Washroom Hygiene
   - Drainage
   - Traffic Signal
+  - Spitting
   - Public Property Damage
+  - Encroachment
+  - Animal Welfare
+  - Illegal Parking
   - Others
 
 ### 4) Issues (`Issue`)
@@ -50,7 +55,7 @@ Main civic issue record.
 - `reporter` (ref: `User`)
 - `assignedAdmin` (ref: `Admin`, optional)
 - `photos` (embedded array, max 5)
-- `status`: `Pending | In Progress | Resolved`
+- `status`: `Complaint Submitted | Assigned to Department | Engineer Assigned | Inspection Scheduled | Work Started | Work Completed | Citizen Verification Pending | Resolved | REOPENED`
 - `priority`: `Low | Medium | High`
 - `adminRemarks`, `completionPhoto`, `completionPhotoUploadedAt`
 - `createdAt`, `updatedAt`
@@ -66,7 +71,7 @@ Tracks each status transition.
 Citizen notifications.
 - `recipient` (ref: `User`)
 - `issue` (ref: `Issue`)
-- `type`: `Issue Submitted | Status Changed | Issue Resolved`
+- `type`: `Issue Submitted | Status Changed | Issue Resolved | Issue Reopened`
 - `message`, `isRead`, `createdAt`
 
 ### Why Issue photos are embedded
@@ -92,8 +97,6 @@ Base URL: `/api`
 - `DELETE /issues/:id` — delete own pending issue
 - `GET /issues/:id/history` — status timeline
 
-Status updates notify the citizen with specific messages for engineer assignment, inspection scheduling, work start, work completion, and the verification request.
-
 ### Admin Routes
 - `GET /admin/issues` — list/filter/search all issues
 - `PATCH /admin/issues/:id` — assign category/admin, update status, remarks, and completion photo
@@ -105,35 +108,35 @@ Status updates notify the citizen with specific messages for engineer assignment
 
 ## Local Setup
 
-## 1) Install dependencies
+### 1) Install dependencies
 
 ```bash
 cd client && npm install
 cd ../server && npm install
 ```
 
-## 2) Configure environment
+### 2) Configure environment
 
 ```bash
 cd server
 cp .env.example .env
 ```
 
-Set `MONGO_URI` and `JWT_SECRET`.
+Set `MONGO_URI`, `JWT_SECRET`, and optional admin seed / CORS variables.
 
-## 3) Seed default categories
+### 3) Seed default categories
 
 ```bash
 npm run seed
 ```
 
-## 4) Run backend
+### 4) Run backend
 
 ```bash
 npm run dev
 ```
 
-## 5) Run frontend (new terminal)
+### 5) Run frontend (new terminal)
 
 ```bash
 cd client
@@ -156,8 +159,4 @@ npm run dev
 - `npm run dev`
 - `npm run start`
 - `npm run seed`
-
-## Notes
-- JWT auth is simple and intentionally beginner-friendly.
-- Admin and citizen accounts are separated by collection and token role.
-- Status flow allows forward movement only: `Pending → In Progress → Resolved`.
+- `npm run seed:admin`

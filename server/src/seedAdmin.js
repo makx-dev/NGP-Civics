@@ -3,42 +3,45 @@ const bcrypt = require('bcryptjs');
 const connectDB = require('./config/db');
 const Admin = require('./models/Admin');
 
-const DEFAULT_ADMIN = {
-  name: 'NGP Civics Authority',
-  email: 'admin@nmcnagpur.gov.in',
-  password: 'Admin@123',
-  department: 'Authority',
-};
-
 async function seedAdmin() {
   await connectDB();
 
-  const email = String(DEFAULT_ADMIN.email || '').toLowerCase().trim();
-  if (!email) throw new Error('DEFAULT_ADMIN.email is missing');
+  const email = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
+  const password = process.env.ADMIN_PASSWORD;
+  const name = process.env.ADMIN_NAME || 'NGP Civics Authority';
+  const department = process.env.ADMIN_DEPARTMENT || 'Authority';
+
+  if (!email || !password) {
+    console.error('Error: ADMIN_EMAIL and ADMIN_PASSWORD must be configured in your environment/.env file.');
+    console.error('Example: ADMIN_EMAIL=admin@nmcnagpur.gov.in ADMIN_PASSWORD=your-secure-password node src/seedAdmin.js');
+    process.exit(1);
+  }
+
+  if (password.length < 8) {
+    console.error('Error: ADMIN_PASSWORD must be at least 8 characters long.');
+    process.exit(1);
+  }
 
   const existing = await Admin.findOne({ email });
   if (existing) {
-    // eslint-disable-next-line no-console
     console.log(`Admin already exists for ${email}`);
     process.exit(0);
   }
 
-  const passwordHash = await bcrypt.hash(DEFAULT_ADMIN.password, 10);
+  const passwordHash = await bcrypt.hash(password, 10);
   await Admin.create({
-    name: DEFAULT_ADMIN.name,
+    name,
     email,
     passwordHash,
-    department: DEFAULT_ADMIN.department,
+    department,
   });
 
-  // eslint-disable-next-line no-console
-  console.log(`Seeded default admin: ${email}`);
+  console.log(`Successfully seeded admin: ${email}`);
   process.exit(0);
 }
 
 seedAdmin().catch(async (err) => {
-  // eslint-disable-next-line no-console
-  console.error(err);
+  console.error('Admin seeding failed:', err);
   process.exit(1);
 });
 

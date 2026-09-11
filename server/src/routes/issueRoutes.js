@@ -121,20 +121,44 @@ router.get('/', protect(), async (req, res) => {
 
 router.get('/summary', protect('admin'), async (_req, res) => {
   try {
-    const [totals, byCategory, recentActivity] = await Promise.all([
+    const [totals, byCategory, byStatus, recentActivity] = await Promise.all([
       Issue.aggregate([
         {
           $group: {
             _id: null,
             total: { $sum: 1 },
             pending: {
-              $sum: { $cond: [{ $eq: ['$status', 'Pending'] }, 1, 0] },
+              $sum: {
+                $cond: [{ $in: ['$status', ['Complaint Submitted', 'Pending']] }, 1, 0],
+              },
             },
             inProgress: {
-              $sum: { $cond: [{ $eq: ['$status', 'In Progress'] }, 1, 0] },
+              $sum: {
+                $cond: [
+                  {
+                    $in: [
+                      '$status',
+                      [
+                        'Assigned to Department',
+                        'Engineer Assigned',
+                        'Inspection Scheduled',
+                        'Work Started',
+                        'Work Completed',
+                        'Citizen Verification Pending',
+                        'REOPENED',
+                        'In Progress',
+                      ],
+                    ],
+                  },
+                  1,
+                  0,
+                ],
+              },
             },
             resolved: {
-              $sum: { $cond: [{ $eq: ['$status', 'Resolved'] }, 1, 0] },
+              $sum: {
+                $cond: [{ $in: ['$status', ['Resolved', 'Completed']] }, 1, 0],
+              },
             },
           },
         },
@@ -162,6 +186,10 @@ router.get('/summary', protect('admin'), async (_req, res) => {
         { $sort: { count: -1, _id: 1 } },
         { $project: { _id: 0, category: '$_id', count: 1 } },
       ]),
+      Issue.aggregate([
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+        { $project: { _id: 0, status: '$_id', count: 1 } },
+      ]),
       Issue.find()
         .sort({ createdAt: -1 })
         .limit(5)
@@ -174,6 +202,7 @@ router.get('/summary', protect('admin'), async (_req, res) => {
 
     return res.json({
       overview,
+      byStatus,
       byCategory,
       recentActivity,
     });
@@ -242,6 +271,9 @@ router.post('/', protect('user'), async (req, res) => {
       lng: typeof req.body.lng === 'number' ? req.body.lng : undefined,
     };
 
+    // Citizens cannot self-assign 'High' priority to jump triage. Default to 'Medium' (or 'Low' if specifically requested).
+    const sanitizedPriority = priority === 'Low' ? 'Low' : 'Medium';
+
     const issue = await Issue.create({
       title,
       description,
@@ -249,7 +281,7 @@ router.post('/', protect('user'), async (req, res) => {
       location: loc,
       ward: req.body.ward || 'Ward 12 (Dharampeth / Central Nagpur)',
       photos,
-      priority: priority || 'Medium',
+      priority: sanitizedPriority,
       reporter: req.auth.id,
       status: 'Complaint Submitted',
     });
@@ -302,6 +334,11 @@ router.get('/:id', protect(), async (req, res) => {
       return res.status(404).json({ message: 'Issue not found' });
     }
 
+    const reporterId = issue.reporter?._id ? issue.reporter._id.toString() : issue.reporter?.toString();
+    if (req.auth.role !== 'admin' && reporterId !== req.auth.id) {
+      return res.status(403).json({ message: 'Access denied: You do not have permission to view this issue' });
+    }
+
     return res.json(issue);
   } catch (error) {
     return res.status(400).json({ message: 'Invalid issue ID' });
@@ -317,6 +354,11 @@ router.get('/:id/photo-comparison', protect(), async (req, res) => {
 
     if (!issue) {
       return res.status(404).json({ message: 'Issue not found' });
+    }
+
+    const reporterId = issue.reporter?._id ? issue.reporter._id.toString() : issue.reporter?.toString();
+    if (req.auth.role !== 'admin' && reporterId !== req.auth.id) {
+      return res.status(403).json({ message: 'Access denied: You do not have permission to view photos for this issue' });
     }
 
     return res.json({
@@ -412,15 +454,41 @@ router.patch('/:id', protect('user'), async (req, res) => {
       Object.entries(req.body).filter(([key]) => allowedFields.includes(key))
     );
 
-    const issue = await Issue.findOneAndUpdate(
-      { _id: req.params.id, reporter: req.auth.id, status: 'Complaint Submitted' },
-      updates,
-      { new: true, runValidators: true }
-    ).populate('category', 'name');
+    const issue = await Issue.findOne({
+      _id: req.params.id,
+      reporter: req.auth.id,
+      status: 'Complaint Submitted',
+    });
 
     if (!issue) {
       return res.status(404).json({ message: 'Issue not found or cannot be edited now' });
     }
+
+    if (typeof updates.title === 'string') {
+      issue.title = updates.title.trim();
+    }
+    if (typeof updates.description === 'string') {
+      issue.description = updates.description.trim();
+    }
+    if (Array.isArray(updates.photos)) {
+      issue.photos = updates.photos;
+    }
+    if (updates.location) {
+      const loc = updates.location;
+      const hasGps = typeof loc.lat === 'number' && typeof loc.lng === 'number';
+      const hasAddress = Boolean(loc.address && String(loc.address).trim());
+      if (!hasGps && !hasAddress) {
+        return res.status(400).json({ message: 'Provide GPS coordinates or a manual address' });
+      }
+      issue.location = {
+        address: loc.address ? String(loc.address).trim() : '',
+        lat: typeof loc.lat === 'number' ? loc.lat : undefined,
+        lng: typeof loc.lng === 'number' ? loc.lng : undefined,
+      };
+    }
+
+    await issue.save();
+    await issue.populate('category', 'name');
 
     return res.json(issue);
   } catch (error) {
@@ -452,6 +520,11 @@ router.get('/:id/history', protect(), async (req, res) => {
 
     if (!issue) {
       return res.status(404).json({ message: 'Issue not found' });
+    }
+
+    const reporterId = issue.reporter?._id ? issue.reporter._id.toString() : issue.reporter?.toString();
+    if (req.auth.role !== 'admin' && reporterId !== req.auth.id) {
+      return res.status(403).json({ message: 'Access denied: You do not have permission to view history for this issue' });
     }
 
     const history = await StatusHistory.find({ issue: req.params.id })

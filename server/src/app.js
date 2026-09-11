@@ -3,18 +3,56 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
+const fs = require('fs');
+
 const authRoutes = require('./routes/authRoutes');
 const issueRoutes = require('./routes/issueRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
 const { apiLimiter } = require('./middleware/rateLimiters');
 const { pingDatabase } = require('./utils/mongoPing');
 
 const app = express();
 
 const clientDistPath = path.join(__dirname, '..', '..', 'client', 'dist');
+const uploadsPath = path.join(__dirname, '..', '..', 'uploads');
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+}
 
-app.use(cors());
+const getAllowedOrigins = () => {
+  const envOrigins = [
+    process.env.CLIENT_URL,
+    ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map((s) => s.trim()) : []),
+  ].filter(Boolean);
+
+  const devOrigins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+  ];
+
+  return Array.from(new Set([...envOrigins, ...devOrigins]));
+};
+
+const allowedOrigins = getAllowedOrigins();
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow non-browser requests (e.g. mobile apps, server-to-server, curl) with no origin header
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origin ${origin} is not allowed by CORS policy`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 app.use(express.json({ limit: '2mb' }));
 app.set('trust proxy', 1);
 
@@ -54,10 +92,12 @@ app.get('/', (_req, res) => {
   res.json({ status: 'ok', service: 'NGP Civics API', baseUrl: '/' });
 });
 
+app.use('/uploads', express.static(uploadsPath));
 app.use('/api/auth', authRoutes);
 app.use('/api/issues', issueRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/upload', uploadRoutes);
 
 /**
  * Serve React SPA and enable client-side routing on refresh.

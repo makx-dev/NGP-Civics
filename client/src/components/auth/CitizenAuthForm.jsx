@@ -101,11 +101,9 @@ export default function CitizenAuthForm({ onSuccess, onError }) {
       const { data } = await api.post('/auth/forgot-password', { email })
       setForgotNotice({
         type: 'success',
-        message: data.otp
-          ? `Reset code generated: ${data.otp} (Valid for ${data.expiresInMinutes} mins)`
-          : 'Verification code sent to your email address.',
+        message: data.message || `A verification code has been sent to ${email}.`,
       })
-      if (data.otp) setForgotOtp(data.otp)
+      setForgotOtp('')
       setForgotStep(2)
     } catch (error) {
       setForgotNotice({

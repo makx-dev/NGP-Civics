@@ -10,9 +10,13 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 })
 
-const darkTileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-const darkAttribution =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+const cartoKey = import.meta.env.VITE_CARTO_API_KEY
+const darkTileUrl = cartoKey
+  ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${cartoKey}`
+  : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+const darkAttribution = cartoKey
+  ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 
 export default function LeafletMap({ center, onMove, height = '400px', readOnly = false }) {
   const mapRef = useRef(null)
@@ -31,7 +35,8 @@ export default function LeafletMap({ center, onMove, height = '400px', readOnly 
 
     L.tileLayer(darkTileUrl, {
       attribution: darkAttribution,
-      maxZoom: 20,
+      className: cartoKey ? '' : 'leaflet-dark-mode-tiles',
+      maxZoom: 19,
     }).addTo(map)
 
     const marker = L.marker([center.lat, center.lng], {

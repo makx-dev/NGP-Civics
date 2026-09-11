@@ -25,6 +25,7 @@ const notificationSchema = new mongoose.Schema(
         'Verification Requested',
         'Issue Reopened',
         'Issue Resolved',
+        'Issue Updated',
       ],
       required: true,
     },

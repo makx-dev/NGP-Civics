@@ -1011,13 +1011,43 @@ export default function AdminIssueDetails() {
                           />
                           <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
                             <span>Proof of completed repair</span>
-                            <button
-                              type="button"
-                              onClick={() => setCompletionPhotoUrl('https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&w=800&q=80')}
-                              className="text-blue-400 hover:underline"
-                            >
-                              Insert Sample Photo URL
-                            </button>
+                            <div className="flex items-center gap-2.5">
+                              <label className="cursor-pointer text-blue-400 hover:underline">
+                                <span>Upload Photo File</span>
+                                <input
+                                  type="file"
+                                  accept="image/png,image/jpeg,image/webp"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0]
+                                    if (!file) return
+                                    try {
+                                      const formData = new FormData()
+                                      formData.append('photo', file)
+                                      const res = await api.post('/upload/single', formData, {
+                                        headers: { 'Content-Type': 'multipart/form-data' },
+                                      })
+                                      if (res.data?.url) {
+                                        setCompletionPhotoUrl(res.data.url)
+                                      }
+                                    } catch (err) {
+                                      setNotice({
+                                        type: 'error',
+                                        message: 'Failed to upload photo: ' + (err.response?.data?.message || err.message),
+                                      })
+                                    }
+                                  }}
+                                />
+                              </label>
+                              <span>•</span>
+                              <button
+                                type="button"
+                                onClick={() => setCompletionPhotoUrl('https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&w=800&q=80')}
+                                className="text-blue-400 hover:underline"
+                              >
+                                Sample Photo URL
+                              </button>
+                            </div>
                           </div>
                         </div>
 

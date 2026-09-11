@@ -9,9 +9,13 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 })
 
-const darkTileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-const darkAttribution =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+const cartoKey = import.meta.env.VITE_CARTO_API_KEY
+const darkTileUrl = cartoKey
+  ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?api_key=${cartoKey}`
+  : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+const darkAttribution = cartoKey
+  ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 
 export default function MapContent({ lat = 21.1458, lng = 79.0882, address = 'Central Avenue, Dharampeth', area = 'Dharampeth', ward = 'Ward 12' }) {
   const numericLat = !isNaN(Number(lat)) && Number(lat) !== 0 ? Number(lat) : 21.1458
@@ -29,7 +33,11 @@ export default function MapContent({ lat = 21.1458, lng = 79.0882, address = 'Ce
       attributionControl: false,
     })
 
-    L.tileLayer(darkTileUrl, { attribution: darkAttribution }).addTo(map)
+    L.tileLayer(darkTileUrl, {
+      attribution: darkAttribution,
+      className: cartoKey ? '' : 'leaflet-dark-mode-tiles',
+      maxZoom: 19,
+    }).addTo(map)
     L.marker([numericLat, numericLng]).addTo(map)
     mapInstance.current = map
 

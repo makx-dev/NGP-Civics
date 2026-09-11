@@ -15,6 +15,8 @@ const { protect } = require('../middleware/auth');
 const router = express.Router();
 router.use(authLimiter);
 
+const MIN_PASSWORD_LENGTH = 8;
+
 const getAllowedGoogleAudiences = () => {
   const audiences = [
     process.env.GOOGLE_CLIENT_ID,
@@ -172,6 +174,12 @@ router.post('/register', async (req, res) => {
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email, and password are required' });
+    }
+
+    if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long`,
+      });
     }
 
     const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -333,8 +341,10 @@ router.post('/change-password', protect('user'), async (req, res) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ message: 'Current and new password are required' });
     }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    if (typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        message: `New password must be at least ${MIN_PASSWORD_LENGTH} characters long`,
+      });
     }
 
     const user = await User.findById(req.auth.id);
@@ -367,7 +377,10 @@ router.post('/forgot-password', async (req, res) => {
 
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
-      return res.status(404).json({ message: 'No account found with this email address.' });
+      return res.json({
+        message: 'If an account exists with this email, a password reset code has been sent.',
+        expiresInMinutes: 15,
+      });
     }
 
     // Generate secure 6-digit numeric OTP
@@ -378,11 +391,12 @@ router.post('/forgot-password', async (req, res) => {
     user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000); // Valid for 15 minutes
     await user.save();
 
-    console.log(`[NGP-Civics Password Reset] Verification code for ${normalizedEmail}: ${otp}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[NGP-Civics Password Reset] Verification code for ${normalizedEmail}: ${otp}`);
+    }
 
     return res.json({
-      message: 'Password reset code generated successfully.',
-      otp, // Included for local demo/testing convenience
+      message: 'If an account exists with this email, a password reset code has been sent.',
       expiresInMinutes: 15,
     });
   } catch (error) {
@@ -401,8 +415,10 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ message: 'Email, reset code, and new password are required' });
     }
 
-    if (newPassword.length < 8) {
-      return res.status(400).json({ message: 'New password must be at least 8 characters' });
+    if (typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        message: `New password must be at least ${MIN_PASSWORD_LENGTH} characters long`,
+      });
     }
 
     const user = await User.findOne({

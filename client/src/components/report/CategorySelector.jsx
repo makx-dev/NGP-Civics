@@ -34,6 +34,8 @@ const iconMap = {
   property: Building2,
   encroach: Construction,
   animal: HeartHandshake,
+  park: Car,
+  parking: Car,
   other: ClipboardList,
 }
 

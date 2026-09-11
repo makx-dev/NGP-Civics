@@ -183,14 +183,33 @@ export default function ReportIssue() {
       try {
         const catRes = await api.get('/categories')
         if (Array.isArray(catRes.data) && catRes.data.length > 0) {
-          const matched = catRes.data.find(
-            (c) => c._id === formData.category ||
-                   c.name.toLowerCase().includes(String(formData.category).toLowerCase()) ||
-                   String(formData.category).toLowerCase().includes(c.name.toLowerCase())
-          )
+          const normalize = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+          const rawCategory = String(formData.category || '')
+          const normalizedInput = normalize(rawCategory)
+
+          // 1. Direct ObjectId match
+          let matched = catRes.data.find((c) => String(c._id) === rawCategory)
+
+          // 2. Normalized substring / equality match
+          if (!matched && normalizedInput) {
+            matched = catRes.data.find((c) => {
+              const normName = normalize(c.name)
+              return (
+                normName === normalizedInput ||
+                normName.includes(normalizedInput) ||
+                normalizedInput.includes(normName)
+              )
+            })
+          }
+
+          // 3. Fallback to "Others" category rather than arbitrary first item
+          if (!matched) {
+            matched = catRes.data.find((c) => normalize(c.name) === 'others' || normalize(c.name) === 'other')
+          }
+
           if (matched) {
             categoryId = matched._id
-          } else if (!formData.category || !formData.category.match(/^[0-9a-fA-F]{24}$/)) {
+          } else if (!rawCategory.match(/^[0-9a-fA-F]{24}$/)) {
             categoryId = catRes.data[0]._id
           }
         }
@@ -198,11 +217,44 @@ export default function ReportIssue() {
         console.warn('Categories lookup warning:', err.message)
       }
 
-      // Format photos array for backend
-      const formattedPhotos = (formData.photos || []).map((p, idx) => ({
-        url: p.preview || (typeof p === 'string' ? p : 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&w=800&q=80'),
-        caption: p.name || `Photo ${idx + 1}`,
-      }))
+      // Format and upload photos array to server for permanent storage
+      const formattedPhotos = await Promise.all(
+        (formData.photos || []).map(async (p, idx) => {
+          // If already a permanent URL (not a local blob: URL)
+          if (typeof p === 'string' && !p.startsWith('blob:')) {
+            return { url: p, caption: `Photo ${idx + 1}` }
+          }
+          if (p.url && typeof p.url === 'string' && !p.url.startsWith('blob:')) {
+            return { url: p.url, caption: p.caption || p.name || `Photo ${idx + 1}` }
+          }
+
+          // If it is a File object (from Dropzone or camera input)
+          const fileToUpload = p instanceof File ? p : (p.file instanceof File ? p.file : null)
+          if (fileToUpload) {
+            try {
+              const fileData = new FormData()
+              fileData.append('photo', fileToUpload)
+              const uploadRes = await api.post('/upload/single', fileData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+              })
+              if (uploadRes.data?.url) {
+                return {
+                  url: uploadRes.data.url,
+                  caption: p.name || fileToUpload.name || `Photo ${idx + 1}`,
+                }
+              }
+            } catch (uploadErr) {
+              console.error('Failed to upload citizen photo to server:', uploadErr)
+            }
+          }
+
+          // Fallback image if upload fails or no valid file
+          return {
+            url: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&w=800&q=80',
+            caption: p.name || `Photo ${idx + 1}`,
+          }
+        })
+      )
 
       // JSON payload expected by POST /api/issues
       const payload = {
