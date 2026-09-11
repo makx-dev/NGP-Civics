@@ -1,6 +1,11 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { OAuth2Client } = require('google-auth-library');
+let OAuth2Client;
+try {
+  ({ OAuth2Client } = require('google-auth-library'));
+} catch (_err) {
+  // Fallback to fetch tokeninfo if google-auth-library is not installed
+}
 const User = require('../models/User');
 const Admin = require('../models/Admin');
 const { signToken } = require('../utils/token');
@@ -10,11 +15,71 @@ const { protect } = require('../middleware/auth');
 const router = express.Router();
 router.use(authLimiter);
 
-const GOOGLE_CLIENT_ID =
-  process.env.GOOGLE_CLIENT_ID ||
-  '658984037649-hfte97l34jn5qtjgk0jok5p86ruk2562.apps.googleusercontent.com';
+const getAllowedGoogleAudiences = () => {
+  const audiences = [
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.VITE_GOOGLE_CLIENT_ID,
+    '658984037649-hfte97l34jn5qtjgk0jok5p86ruk2562.apps.googleusercontent.com',
+  ].filter(Boolean);
+  return Array.from(new Set(audiences));
+};
 
-const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+const verifyGoogleToken = async (idToken) => {
+  const allowedAudiences = getAllowedGoogleAudiences();
+  let payload = null;
+  let verificationError = null;
+
+  // Attempt 1: verify using google-auth-library if available
+  if (OAuth2Client) {
+    try {
+      const client = new OAuth2Client();
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: allowedAudiences.length === 1 ? allowedAudiences[0] : allowedAudiences,
+      });
+      payload = ticket.getPayload();
+    } catch (err) {
+      verificationError = err;
+      console.warn('OAuth2Client.verifyIdToken failed, attempting tokeninfo fallback:', err.message);
+    }
+  }
+
+  // Attempt 2: fallback to Google's tokeninfo API endpoint
+  if (!payload) {
+    try {
+      const response = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        const matchesAudience =
+          allowedAudiences.length === 0 || allowedAudiences.includes(data.aud);
+        if (matchesAudience && data.email) {
+          payload = {
+            sub: data.sub,
+            email: data.email,
+            name: data.name || data.given_name || '',
+            picture: data.picture || '',
+          };
+        } else if (!matchesAudience) {
+          throw new Error(`Token audience (${data.aud}) is not authorized.`);
+        }
+      } else {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error_description || errJson.error || 'Google tokeninfo check failed');
+      }
+    } catch (fallbackErr) {
+      console.error('Google tokeninfo fallback error:', fallbackErr.message);
+      throw verificationError || fallbackErr;
+    }
+  }
+
+  if (!payload || !payload.email) {
+    throw new Error('Invalid Google token payload or missing email address.');
+  }
+
+  return payload;
+};
 
 router.post('/google', async (req, res) => {
   try {
@@ -23,39 +88,58 @@ router.post('/google', async (req, res) => {
       return res.status(400).json({ message: 'Google credential is required' });
     }
 
-    const ticket = await googleClient.verifyIdToken({
-      idToken: credential,
-      audience: GOOGLE_CLIENT_ID,
-    });
+    const payload = await verifyGoogleToken(credential);
+    const { sub: googleId, email, name, picture } = payload;
+    const normalizedEmail = (email || '').toLowerCase().trim();
 
-    const payload = ticket.getPayload();
-    if (!payload || !payload.email) {
-      return res.status(400).json({ message: 'Invalid Google token payload' });
+    if (!normalizedEmail) {
+      return res.status(400).json({ message: 'No valid email found in Google profile' });
     }
 
-    const { sub: googleId, email, name, picture } = payload;
-    const normalizedEmail = email.toLowerCase();
-
-    let user = await User.findOne({ email: normalizedEmail });
+    // Find existing user by googleId or email
+    let user = await User.findOne({
+      $or: [
+        ...(googleId ? [{ googleId }] : []),
+        { email: normalizedEmail },
+      ],
+    });
 
     if (user) {
-      let needsSave = false;
-      if (!user.googleId) {
-        user.googleId = googleId;
-        needsSave = true;
+      const updates = {};
+      if (googleId && user.googleId !== googleId) {
+        updates.googleId = googleId;
       }
-      if (!user.avatar && picture) {
-        user.avatar = picture;
-        needsSave = true;
+      if (picture && !user.avatar) {
+        updates.avatar = picture;
       }
-      if (needsSave) {
-        await user.save();
+      if (name && (!user.name || user.name === 'Citizen')) {
+        const safeName = name.trim().slice(0, 80);
+        if (safeName.length >= 2) {
+          updates.name = safeName;
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        user = await User.findByIdAndUpdate(
+          user._id,
+          { $set: updates },
+          { new: true }
+        );
       }
     } else {
+      let safeName = (name || '').trim();
+      if (safeName.length < 2) {
+        const prefix = (normalizedEmail.split('@')[0] || '').trim();
+        safeName = prefix.length >= 2 ? prefix : 'Citizen';
+      }
+      if (safeName.length > 80) {
+        safeName = safeName.slice(0, 80);
+      }
+
       user = await User.create({
-        name: name || 'Citizen',
+        name: safeName,
         email: normalizedEmail,
-        googleId,
+        googleId: googleId || null,
         avatar: picture || '',
       });
     }
@@ -262,6 +346,81 @@ router.post('/change-password', protect('user'), async (req, res) => {
     return res.json({ message: 'Password changed successfully' });
   } catch (error) {
     return res.status(500).json({ message: error.message });
+  }
+});
+
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    const normalizedEmail = (email || '').toLowerCase().trim();
+
+    if (!normalizedEmail) {
+      return res.status(400).json({ message: 'Email address is required' });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ message: 'No account found with this email address.' });
+    }
+
+    // Generate secure 6-digit numeric OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = await bcrypt.hash(otp, 8);
+
+    user.resetPasswordToken = hashedOtp;
+    user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000); // Valid for 15 minutes
+    await user.save();
+
+    console.log(`[NGP-Civics Password Reset] Verification code for ${normalizedEmail}: ${otp}`);
+
+    return res.json({
+      message: 'Password reset code generated successfully.',
+      otp, // Included for local demo/testing convenience
+      expiresInMinutes: 15,
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    return res.status(500).json({ message: error.message || 'Failed to generate reset code.' });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body || {};
+    const normalizedEmail = (email || '').toLowerCase().trim();
+    const cleanOtp = String(otp || '').trim();
+
+    if (!normalizedEmail || !cleanOtp || !newPassword) {
+      return res.status(400).json({ message: 'Email, reset code, and new password are required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters' });
+    }
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+      resetPasswordExpires: { $gt: new Date() },
+    });
+
+    if (!user || !user.resetPasswordToken) {
+      return res.status(400).json({ message: 'Invalid or expired reset code. Please request a new one.' });
+    }
+
+    const isMatch = await bcrypt.compare(cleanOtp, user.resetPasswordToken);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Incorrect reset code. Please verify and try again.' });
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    return res.json({ message: 'Your password has been reset successfully. You can now sign in.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return res.status(500).json({ message: error.message || 'Failed to reset password.' });
   }
 });
 

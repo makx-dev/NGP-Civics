@@ -20,11 +20,11 @@ const userSchema = new mongoose.Schema(
     passwordHash: {
       type: String,
       required: false,
-      minlength: 6,
     },
     googleId: {
       type: String,
       default: null,
+      sparse: true,
     },
     avatar: {
       type: String,
@@ -34,6 +34,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: 20,
+      default: '',
     },
     address: {
       type: String,
@@ -46,6 +47,14 @@ const userSchema = new mongoose.Schema(
       trim: true,
       maxlength: 100,
       default: '',
+    },
+    resetPasswordToken: {
+      type: String,
+      default: null,
+    },
+    resetPasswordExpires: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }

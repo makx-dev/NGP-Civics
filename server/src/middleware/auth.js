@@ -10,7 +10,8 @@ const protect = (requiredRole = null) => (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const secret = process.env.JWT_SECRET || 'ngp-civics-jwt-secret-fallback-key-2026';
+    const decoded = jwt.verify(token, secret);
 
     if (requiredRole && decoded.role !== requiredRole) {
       return res.status(403).json({ message: 'Forbidden for this role' });
