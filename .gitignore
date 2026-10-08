@@ -6,3 +6,4 @@ server/node_modules/
 .DS_Store
 client/dist/
 coverage/
+
